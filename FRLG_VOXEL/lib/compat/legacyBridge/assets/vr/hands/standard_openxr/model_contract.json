@@ -1,0 +1,85 @@
+{
+  "schemaVersion": 1,
+  "styleId": "ash_fingerless_v1",
+  "prototypeStage": "bare-hand approval",
+  "units": "meters",
+  "controllerSpace": {
+    "origin": "wrist joint",
+    "right": "+X",
+    "dorsal": "side-dependent X (see authoredMeshSpace)",
+    "forward": "-Z toward fingertips",
+    "curlAxis": "+X bends fingertips toward +Y"
+  },
+  "authoredMeshSpace": {
+    "fingerSpreadAxis": "Y",
+    "palmThicknessAxis": "X",
+    "dorsal": { "left": "-X", "right": "+X" },
+    "palm": { "left": "+X", "right": "-X" },
+    "note": "Authored OpenXR grip-aligned basis; not an anatomical +Y-dorsal mesh. No extra renderer rotation."
+  },
+  "meshRefinement": {
+    "revision": "rounded-1",
+    "subdivisionPasses": 1,
+    "sourceVertices": 603,
+    "sourceTriangles": 938,
+    "fingerRadialScaleAfterRounding": 1.10,
+    "palmDepthScaleAfterRounding": 1.09,
+    "rigAndControllerAlignmentChanged": false,
+    "generator": "tools/round_standard_hand.py"
+  },
+  "target": {
+    "wristToTipMeters": 0.211553,
+    "renderScale": 0.9,
+    "visualWristToTipMeters": 0.190398,
+    "gloveGeometryIncluded": false
+  },
+  "articulation": {
+    "jointCount": 25,
+    "controllerFallbackDegrees": {
+      "indexProximal": 86,
+      "indexIntermediate": 97,
+      "indexDistal": 82,
+      "gripProximal": 86,
+      "gripIntermediate": 97,
+      "gripDistal": 82,
+      "thumbMetacarpal": -20,
+      "thumbProximal": 80,
+      "thumbDistal": 45,
+      "thumbOppositionY": -50,
+      "thumbAdductionZ": -40
+    }
+  },
+  "models": {
+    "left": {
+      "glb": "openxr_hand_left.glb",
+      "sha256": "830C7F6843F0D074C0448F3C70F5D3709E15B876F5F61297A4B094896D3D53F1",
+      "vertices": 2142,
+      "triangles": 3752,
+      "joints": [
+        "wrist", "thumb_metacarpal", "thumb_proximal", "thumb_distal", "thumb_tip",
+        "index_metacarpal", "index_proximal", "index_intermediate", "index_distal", "index_tip",
+        "middle_metacarpal", "middle_proximal", "middle_intermediate", "middle_distal", "middle_tip",
+        "ring_metacarpal", "ring_proximal", "ring_intermediate", "ring_distal", "ring_tip",
+        "little_metacarpal", "little_proximal", "little_intermediate", "little_distal", "little_tip"
+      ]
+    },
+    "right": {
+      "glb": "openxr_hand_right.glb",
+      "sha256": "1491FFCFAADB9ED48D5AD040C0BC3E4FDB12DCC1E575DE6A3388C760F66D82B7",
+      "vertices": 2142,
+      "triangles": 3752,
+      "joints": [
+        "wrist", "thumb_metacarpal", "thumb_proximal", "thumb_distal", "thumb_tip",
+        "index_metacarpal", "index_proximal", "index_intermediate", "index_distal", "index_tip",
+        "middle_metacarpal", "middle_proximal", "middle_intermediate", "middle_distal", "middle_tip",
+        "ring_metacarpal", "ring_proximal", "ring_intermediate", "ring_distal", "ring_tip",
+        "little_metacarpal", "little_proximal", "little_intermediate", "little_distal", "little_tip"
+      ]
+    }
+  },
+  "source": {
+    "project": "Godot OpenXR hand tracking demo",
+    "license": "MIT",
+    "repository": "https://github.com/godotengine/godot-demo-projects/tree/master/xr/openxr_hand_tracking_demo"
+  }
+}

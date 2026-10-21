@@ -1,0 +1,1355 @@
+{
+  "version": "0.1.0-beta.1",
+  "files": [
+    {
+      "path": ".gitignore",
+      "bytes": 317,
+      "sha256": "fb6a76fbd4d463f5a7fac146c272d28561bea03393b1e5a5c997e720ae804406"
+    },
+    {
+      "path": "FRLG_VOXEL/lib/battle/BattleCards.lua",
+      "bytes": 41812,
+      "sha256": "2a5d4a0ca7760fb3ed8171364d0926f766555b12c4c61a7b76903c8f76b890e5"
+    },
+    {
+      "path": "FRLG_VOXEL/lib/battle/BattleCatch.lua",
+      "bytes": 10142,
+      "sha256": "bfc53f9785378cf22b0ecb151106b95fe7177cf83a1f80f697ccd113a3e68490"
+    },
+    {
+      "path": "FRLG_VOXEL/lib/battle/BattleCut.lua",
+      "bytes": 10669,
+      "sha256": "1b17212be108be1e90e3dcb19cf1cb37486cd40caee5b3658e5b6c77714c0755"
+    },
+    {
+      "path": "FRLG_VOXEL/lib/battle/BattleMove.lua",
+      "bytes": 12901,
+      "sha256": "13c2e04908323b1e635c9089e417b9cd772772b91ca62ec75bb26be402196ca5"
+    },
+    {
+      "path": "FRLG_VOXEL/lib/battle/BattleOccluders.lua",
+      "bytes": 14743,
+      "sha256": "fd34ab34f2ecbcc95c0f4dd893056f6ab20bfd163cfbd7bcd573afe5ea95bf87"
+    },
+    {
+      "path": "FRLG_VOXEL/lib/battle/BattlePass.lua",
+      "bytes": 66703,
+      "sha256": "fc1453526fbbb1b6b3a91cbd23566c520810f86b737b80dd3e67bfa8d04e6416"
+    },
+    {
+      "path": "FRLG_VOXEL/lib/battle/BattleSource.lua",
+      "bytes": 28749,
+      "sha256": "6e3fdf65122f8fb6de19313a3890810457b6e648fc0d718c193bd61972e789d8"
+    },
+    {
+      "path": "FRLG_VOXEL/lib/battle/BattleStage.lua",
+      "bytes": 21623,
+      "sha256": "19c5c1c8217dcc91fba81c71800159cea24dc0fa3cbbcb9c531daff12865483f"
+    },
+    {
+      "path": "FRLG_VOXEL/lib/battle/BattleThrow.lua",
+      "bytes": 12150,
+      "sha256": "2cf56f21746a0bb16d524aed693e41ac9808199a6f6cbf9e21ff290072b6db65"
+    },
+    {
+      "path": "FRLG_VOXEL/lib/battle/ImportedSprites.lua",
+      "bytes": 4411,
+      "sha256": "4d486e7a1dc34e5ab1e5b226a50c9ab0473b553d03903d2f665046662d5cd5b2"
+    },
+    {
+      "path": "FRLG_VOXEL/lib/cave/CaveAnimation.lua",
+      "bytes": 3143,
+      "sha256": "73c8ef169737d6d57c31ba5b90eef7701a862139d1269dd02616a0cbd0877d5b"
+    },
+    {
+      "path": "FRLG_VOXEL/lib/cave/CaveIndex.lua",
+      "bytes": 432621,
+      "sha256": "16d7ddd6eefc3263bd630b6e7b9cded7681f6d89ef2ebe5d292fe1e0aabbabd2"
+    },
+    {
+      "path": "FRLG_VOXEL/lib/cave/CavePlacement.lua",
+      "bytes": 1350,
+      "sha256": "28a39d85a71004e0689af3773179690763cd0d38362a4efbfa542c4e1ccd9c1e"
+    },
+    {
+      "path": "FRLG_VOXEL/lib/cave/CompiledCave.lua",
+      "bytes": 17856,
+      "sha256": "3ef4577190e9b19f81c36d8c174482e23922984ad41e972c436fcd19babfad15"
+    },
+    {
+      "path": "FRLG_VOXEL/lib/cave/CompiledCaves.lua",
+      "bytes": 6921,
+      "sha256": "00eb78c682fdd81a26f8bf9206b94bdffdfc4a60df41d25fec411e64b444f971"
+    },
+    {
+      "path": "FRLG_VOXEL/lib/cave/data/firered-cerulean-cave-1f.mesh.gz",
+      "bytes": 556301,
+      "sha256": "c0fc85d6484d7bb7fcb8a63724913f62a8910c6649df1d657d718ae3ad79f49b"
+    },
+    {
+      "path": "FRLG_VOXEL/lib/cave/data/firered-cerulean-cave-1f.query.gz",
+      "bytes": 254942,
+      "sha256": "7aa40e424f4366d3502fa9bde657e8bcd2b66e770de69dcc3c47b82d3eb3e477"
+    },
+    {
+      "path": "FRLG_VOXEL/lib/cave/data/firered-cerulean-cave-2f.mesh.gz",
+      "bytes": 1702433,
+      "sha256": "133766fd11f64703a7bbc468698dd7205b1468cae2c011569e517e8a6a2187d6"
+    },
+    {
+      "path": "FRLG_VOXEL/lib/cave/data/firered-cerulean-cave-2f.query.gz",
+      "bytes": 100019,
+      "sha256": "cf209594148666f95097df4b52d2b215341b493d3960f0c7c6aeb3731a6c4b3b"
+    },
+    {
+      "path": "FRLG_VOXEL/lib/cave/data/firered-cerulean-cave-b1f.mesh.gz",
+      "bytes": 440591,
+      "sha256": "a07ac28adfd2473c48fef9afba6afdfbb4cd8e1b53f8882b2e01334d84d28745"
+    },
+    {
+      "path": "FRLG_VOXEL/lib/cave/data/firered-cerulean-cave-b1f.query.gz",
+      "bytes": 282844,
+      "sha256": "59f418ee9ff166ea918d5f49fd709a9c8ec9f024b23b54ba0502f1d43d1956f2"
+    },
+    {
+      "path": "FRLG_VOXEL/lib/cave/data/firered-diglett-b1f.mesh.gz",
+      "bytes": 1051044,
+      "sha256": "418ca74ed1f7d1dbcc14e5524738e410867d659e1dc8c8cd80c24b4fe2f1116b"
+    },
+    {
+      "path": "FRLG_VOXEL/lib/cave/data/firered-diglett-b1f.query.gz",
+      "bytes": 979833,
+      "sha256": "20c09943f5830250201032bdd7e3245e357186b07aff0c7ceeafbbf130b4889b"
+    },
+    {
+      "path": "FRLG_VOXEL/lib/cave/data/firered-diglett-north-entrance.mesh.gz",
+      "bytes": 23512,
+      "sha256": "280ce147b5ea999d89c4b4f06341990a1eea0edd1b60c425080633bb92e5d016"
+    },
+    {
+      "path": "FRLG_VOXEL/lib/cave/data/firered-diglett-north-entrance.query.gz",
+      "bytes": 17738,
+      "sha256": "adab46f6ea8635c9848304a33169d9554f0a67e5cde0e066a31a27d295b85295"
+    },
+    {
+      "path": "FRLG_VOXEL/lib/cave/data/firered-diglett-south-entrance.mesh.gz",
+      "bytes": 23611,
+      "sha256": "d2cbe6d467eb4f3485a518fc52f2b17a6b29ee4d1e9645f586f7e1464ba339aa"
+    },
+    {
+      "path": "FRLG_VOXEL/lib/cave/data/firered-diglett-south-entrance.query.gz",
+      "bytes": 17737,
+      "sha256": "8a461ebd43b8f80d54c43d4aa347e54dde8a5f66e5e572c0520d5f10e4687157"
+    },
+    {
+      "path": "FRLG_VOXEL/lib/cave/data/firered-icefall-entrance.mesh.gz",
+      "bytes": 982635,
+      "sha256": "f11cf1d4fdc0f4d48419c80435cc1e3166733a880efef4899650a92a51e0b532"
+    },
+    {
+      "path": "FRLG_VOXEL/lib/cave/data/firered-icefall-entrance.query.gz",
+      "bytes": 671319,
+      "sha256": "a596c08098de104e2abb07e3c121903bdf6aeb923d9dee99357e1dd61a605034"
+    },
+    {
+      "path": "FRLG_VOXEL/lib/cave/data/firered-mt-moon-1f.mesh.gz",
+      "bytes": 1295187,
+      "sha256": "ed02b66a7c143d03f79a1e21d2a6874cb548d941783b25911b29bee5d0e871ad"
+    },
+    {
+      "path": "FRLG_VOXEL/lib/cave/data/firered-mt-moon-1f.query.gz",
+      "bytes": 1004871,
+      "sha256": "394bb0e0958b62004651aeb156fe549e612b32f50d29129e618115e986a910f7"
+    },
+    {
+      "path": "FRLG_VOXEL/lib/cave/data/firered-mt-moon-b1f.mesh.gz",
+      "bytes": 1501079,
+      "sha256": "4bafc9ef893df3f44eb46b6188609fe468d2cef4465614ff95a880f1b134508e"
+    },
+    {
+      "path": "FRLG_VOXEL/lib/cave/data/firered-mt-moon-b1f.query.gz",
+      "bytes": 1820069,
+      "sha256": "75e793ac56cccdc92f19520ec9772e0ce604ce256eed8136eaebb9b4c3db30cf"
+    },
+    {
+      "path": "FRLG_VOXEL/lib/cave/data/firered-mt-moon-b2f.mesh.gz",
+      "bytes": 2189277,
+      "sha256": "e6cac255dd0b7558dc8757f15fa93f3c2e25493201e33311acaed5a4589dbb07"
+    },
+    {
+      "path": "FRLG_VOXEL/lib/cave/data/firered-mt-moon-b2f.query.gz",
+      "bytes": 1622805,
+      "sha256": "d3dcfb3977e3fb14677d5f7c1206311fe41590dae737b63407562b32aa7ed96f"
+    },
+    {
+      "path": "FRLG_VOXEL/lib/cave/data/firered-rock-tunnel-1f.mesh.gz",
+      "bytes": 829338,
+      "sha256": "ba6726bc052d2404d1feeb80c56b95f71dd49d80151ba69d96c2d992f573803e"
+    },
+    {
+      "path": "FRLG_VOXEL/lib/cave/data/firered-rock-tunnel-1f.query.gz",
+      "bytes": 692909,
+      "sha256": "a3f201ce6bcee957f9a15501d4274a7b35961163a2c81785a97d53a8597f2429"
+    },
+    {
+      "path": "FRLG_VOXEL/lib/cave/data/firered-rock-tunnel-b1f.mesh.gz",
+      "bytes": 1129760,
+      "sha256": "1894c940a514ac8d41413911a05363fa7c2abec2342455596cbbdaf112ff586b"
+    },
+    {
+      "path": "FRLG_VOXEL/lib/cave/data/firered-rock-tunnel-b1f.query.gz",
+      "bytes": 1010507,
+      "sha256": "091de5313e413eba65be460bb4b4d0eaec5f5b421e2a8ff9d781483ab293939c"
+    },
+    {
+      "path": "FRLG_VOXEL/lib/cave/data/firered-seafoam-1f.mesh.gz",
+      "bytes": 695147,
+      "sha256": "e82834ad0daeaff924593fee7d87482345975f33d0abc61147e1c644693d2179"
+    },
+    {
+      "path": "FRLG_VOXEL/lib/cave/data/firered-seafoam-1f.query.gz",
+      "bytes": 156484,
+      "sha256": "cfa5fda53cd70225150d060d96f08d52d6977dd95e32a190172344a3b55ac6c1"
+    },
+    {
+      "path": "FRLG_VOXEL/lib/cave/data/firered-seafoam-b1f.mesh.gz",
+      "bytes": 784208,
+      "sha256": "fb01dc98d7d2e53f34bd2f0ca26772f14db4e5317dad1d881ad3612adcde89d5"
+    },
+    {
+      "path": "FRLG_VOXEL/lib/cave/data/firered-seafoam-b1f.query.gz",
+      "bytes": 173218,
+      "sha256": "a02e981b950b118b9feb932d49a3658a93b159410af6749ac7acf4f2614545cd"
+    },
+    {
+      "path": "FRLG_VOXEL/lib/cave/data/firered-seafoam-b2f.mesh.gz",
+      "bytes": 809215,
+      "sha256": "7698a9bf9576ac34b2677fa570931ae3e33308dcfc6bdcadb0e9b78da5941e9e"
+    },
+    {
+      "path": "FRLG_VOXEL/lib/cave/data/firered-seafoam-b2f.query.gz",
+      "bytes": 191435,
+      "sha256": "a7abe9043674abb1807bfe5b8c016e45d1529951a9793b663110f7b209234abc"
+    },
+    {
+      "path": "FRLG_VOXEL/lib/cave/data/firered-seafoam-b3f.mesh.gz",
+      "bytes": 711370,
+      "sha256": "6ba50a8e08fcc6a074f7ad1127ac1f03fa4b0b58c3c5900941eb3e2817f2fa0d"
+    },
+    {
+      "path": "FRLG_VOXEL/lib/cave/data/firered-seafoam-b3f.query.gz",
+      "bytes": 340246,
+      "sha256": "a6ddae474f9837dda3d06834742fb4e20c2e651df96632e519375cba9ed51880"
+    },
+    {
+      "path": "FRLG_VOXEL/lib/cave/data/firered-seafoam-b4f.mesh.gz",
+      "bytes": 460552,
+      "sha256": "9959518cebc98fc014ce0294f721ef6033e0f15227438e79e06cd2513d384179"
+    },
+    {
+      "path": "FRLG_VOXEL/lib/cave/data/firered-seafoam-b4f.query.gz",
+      "bytes": 188217,
+      "sha256": "1e28d7f9d13ea6c95324aebeea922e90c977f05939912373f44338698e6b05c6"
+    },
+    {
+      "path": "FRLG_VOXEL/lib/cave/data/firered-victory-road-1f.mesh.gz",
+      "bytes": 823273,
+      "sha256": "62fcbe8cb2ad8747af5ce078fd2a731d51056dda6df3ff7a5a57af84f821f7d9"
+    },
+    {
+      "path": "FRLG_VOXEL/lib/cave/data/firered-victory-road-1f.query.gz",
+      "bytes": 148010,
+      "sha256": "3070e75375323506107aa9ab466a25c5a53b8d3da397695d90822981512f0623"
+    },
+    {
+      "path": "FRLG_VOXEL/lib/cave/data/firered-victory-road-2f.mesh.gz",
+      "bytes": 978029,
+      "sha256": "c94966b20e059db529ea46d2c9ce1b66334ab3cffe52d52f70898c883f85b421"
+    },
+    {
+      "path": "FRLG_VOXEL/lib/cave/data/firered-victory-road-2f.query.gz",
+      "bytes": 185088,
+      "sha256": "518eb5f5e9da24e124c63ba566c2691f0b0e813a00c4b7f30ef9934434a7534d"
+    },
+    {
+      "path": "FRLG_VOXEL/lib/cave/data/firered-victory-road-3f.mesh.gz",
+      "bytes": 1181075,
+      "sha256": "7eab81f56635e00967072c33c152322d13b16be8134fbd469ae6c98f207ea30b"
+    },
+    {
+      "path": "FRLG_VOXEL/lib/cave/data/firered-victory-road-3f.query.gz",
+      "bytes": 185310,
+      "sha256": "4e6da985d6ea3f824499085b9129f3d30c4ee177baa79a77d9e2f4eba1faedae"
+    },
+    {
+      "path": "FRLG_VOXEL/lib/cave/QueryCodec.lua",
+      "bytes": 3363,
+      "sha256": "4b521c94a66964763032c8dda621424c665039770cf9e57e1c714134fb57cb12"
+    },
+    {
+      "path": "FRLG_VOXEL/lib/compat/legacyBridge/assets/vr/hands/standard_openxr/LICENSE.godot-demo-projects.md",
+      "bytes": 1134,
+      "sha256": "0339177149b474f7ff676d32218ecb3a8f2538955610023c3769763720d09e4c"
+    },
+    {
+      "path": "FRLG_VOXEL/lib/compat/legacyBridge/assets/vr/hands/standard_openxr/model_contract.json",
+      "bytes": 3169,
+      "sha256": "64f6091b79e18aaec4e3edb43c4c0f1199c022f52aadce8d2e0e9c1d4bf49ca4"
+    },
+    {
+      "path": "FRLG_VOXEL/lib/compat/legacyBridge/assets/vr/hands/standard_openxr/openxr_hand_left.glb",
+      "bytes": 480516,
+      "sha256": "830c7f6843f0d074c0448f3c70f5d3709e15b876f5f61297a4b094896d3d53f1"
+    },
+    {
+      "path": "FRLG_VOXEL/lib/compat/legacyBridge/assets/vr/hands/standard_openxr/openxr_hand_right.glb",
+      "bytes": 480584,
+      "sha256": "1491ffcfaadb9ed48d5ad040c0bc3e4fdb12dcc1e575de6a3388c760f66d82b7"
+    },
+    {
+      "path": "FRLG_VOXEL/lib/compat/legacyBridge/assets/vr/hands/standard_openxr/README.md",
+      "bytes": 1689,
+      "sha256": "beedea7298ce5169508185f24da5877eb6b798f9a44625a0ba87265500d6968f"
+    },
+    {
+      "path": "FRLG_VOXEL/lib/compat/legacyBridge/lib/AllocTrim.lua",
+      "bytes": 300,
+      "sha256": "4f5f86e60ceb2b64323f1198124e6ccc4ea76eada74fa49939c9c96734742670"
+    },
+    {
+      "path": "FRLG_VOXEL/lib/compat/legacyBridge/lib/compat/ApproachLoader.lua",
+      "bytes": 26630,
+      "sha256": "57b6621cb2b14ffffe5abbef9bc7a09f882d158303315da1d7c3689cd0e869b1"
+    },
+    {
+      "path": "FRLG_VOXEL/lib/compat/legacyBridge/lib/compat/EmeraldCaptureCompat.lua",
+      "bytes": 943,
+      "sha256": "dc0f279b2c72b8010cbdc70487684edff64eacf04b7f7f012000a3423ddd4436"
+    },
+    {
+      "path": "FRLG_VOXEL/lib/compat/legacyBridge/lib/compat/EmeraldChooseYouCompat.lua",
+      "bytes": 16628,
+      "sha256": "f14246e6c987c54005908a29ebab07b258444e7e4bb0316ad2cba60ea930356c"
+    },
+    {
+      "path": "FRLG_VOXEL/lib/compat/legacyBridge/lib/compat/EmeraldPokedexScanCompat.lua",
+      "bytes": 1854,
+      "sha256": "7ab810f7c15023f74521f4806c05fe36f4f40e16e2d49d6f991175949d694759"
+    },
+    {
+      "path": "FRLG_VOXEL/lib/compat/legacyBridge/lib/compat/gear/GearAdjustment.lua",
+      "bytes": 6179,
+      "sha256": "266fd2140263f4e9cb4e3df883fcdd4273079f45800250bf68edc3a7e230da47"
+    },
+    {
+      "path": "FRLG_VOXEL/lib/compat/legacyBridge/lib/compat/gear/GearPlacementStore.lua",
+      "bytes": 1000,
+      "sha256": "d946c6a9ded519dda932dbe36c897ff5937f11e9eb3e67ceb6dc3c9d79c98a6c"
+    },
+    {
+      "path": "FRLG_VOXEL/lib/compat/legacyBridge/lib/compat/gear/GearPlacementView.lua",
+      "bytes": 1132,
+      "sha256": "ff4b3c93ad9b196bac58880db2607513f6be516ecc28e1847b5e7e4e84514626"
+    },
+    {
+      "path": "FRLG_VOXEL/lib/compat/legacyBridge/lib/compat/gear/HipRig.lua",
+      "bytes": 1748,
+      "sha256": "5547bceb4da5ba4ee5596e046f63a0a6ca0872211b455e061e95e5aa593c9a76"
+    },
+    {
+      "path": "FRLG_VOXEL/lib/compat/legacyBridge/lib/compat/gear/PartyClipView.lua",
+      "bytes": 1849,
+      "sha256": "b4580fa3af5c88b264634ea73575e795d7e5d0b187f10c98193c5d980e6f281b"
+    },
+    {
+      "path": "FRLG_VOXEL/lib/compat/legacyBridge/lib/compat/gear/UtilityBeltLayout.lua",
+      "bytes": 2765,
+      "sha256": "c31fa1f06512042c3cdab123a4906ee4aeedb6e9b5d6b9b52b767a832e6daf24"
+    },
+    {
+      "path": "FRLG_VOXEL/lib/compat/legacyBridge/lib/compat/Gen3BeltCompat.lua",
+      "bytes": 6339,
+      "sha256": "a35f8486899dd0b272082616dc56839dd92bc670608a52c1d2317e395bdba2d0"
+    },
+    {
+      "path": "FRLG_VOXEL/lib/compat/legacyBridge/lib/compat/Gen3BeltSwitch.lua",
+      "bytes": 25132,
+      "sha256": "c81e3107e5ec29e8c6df32fc00aa665960e42f7c64d6a1bc8f8432ba5b20a564"
+    },
+    {
+      "path": "FRLG_VOXEL/lib/compat/legacyBridge/lib/compat/Gen3ChooseYouCompat.lua",
+      "bytes": 37163,
+      "sha256": "1c240e6a61c832f88bfbf47988fa08d65edb15790a5329a3987fa1847079f50a"
+    },
+    {
+      "path": "FRLG_VOXEL/lib/compat/legacyBridge/lib/compat/Gen3ContentsCompat.lua",
+      "bytes": 2749,
+      "sha256": "c9d85b0696a318f6f0eef18fe53caea8e44f69b03f1cec8933dccdce22b7d1c6"
+    },
+    {
+      "path": "FRLG_VOXEL/lib/compat/legacyBridge/lib/compat/Gen3DexScannerCompat.lua",
+      "bytes": 24680,
+      "sha256": "ce56c9f2277e2e925f98a401f97a31301f32d58a5ec53a62b9e9407f11ae9a37"
+    },
+    {
+      "path": "FRLG_VOXEL/lib/compat/legacyBridge/lib/compat/Gen3FishingCompat.lua",
+      "bytes": 24300,
+      "sha256": "be0e32743bf85de2f7f9e29b42c62e6234be96024a9fcdea51c08dee5694f82a"
+    },
+    {
+      "path": "FRLG_VOXEL/lib/compat/legacyBridge/lib/compat/Gen3GearCompat.lua",
+      "bytes": 1615,
+      "sha256": "8a7fc2b747e485dd0d40a6117bdc1c7c8712a28de20d0968739e202c3f4023e7"
+    },
+    {
+      "path": "FRLG_VOXEL/lib/compat/legacyBridge/lib/compat/Gen3LeadSwapCompat.lua",
+      "bytes": 1405,
+      "sha256": "d6368c731e2217f3fbb4e2008f8a38f0aa65e7288c1c8754a6a3ebbe4c3fa5f9"
+    },
+    {
+      "path": "FRLG_VOXEL/lib/compat/legacyBridge/lib/compat/Gen3NamingCompat.lua",
+      "bytes": 3805,
+      "sha256": "b6ddad5608da13fe35849cc9e25877173b12a8fef5572a9ab918888ea702e37d"
+    },
+    {
+      "path": "FRLG_VOXEL/lib/compat/legacyBridge/lib/compat/Gen3PartyActionFX.lua",
+      "bytes": 17210,
+      "sha256": "45bfc1a2afd9f03ef2e7abc70fb036f346db2a520420a7d1ebb9257af65d121f"
+    },
+    {
+      "path": "FRLG_VOXEL/lib/compat/legacyBridge/lib/compat/Gen3PouchCompat.lua",
+      "bytes": 2042,
+      "sha256": "12c72124601c01e0e608092a4500f1e05e0d8c6cff186d513ed338f2831dfe81"
+    },
+    {
+      "path": "FRLG_VOXEL/lib/compat/legacyBridge/lib/compat/Gen3RecallAim.lua",
+      "bytes": 12993,
+      "sha256": "5760fcc356ebd25807d0ad20184fdc1f7218a84b7777e081862900f8f7380d49"
+    },
+    {
+      "path": "FRLG_VOXEL/lib/compat/legacyBridge/lib/compat/Gen3TabletCompat.lua",
+      "bytes": 17859,
+      "sha256": "f140fd541233612c623d90035583bea98ae98973bb6d714bfbdd0f860b500c23"
+    },
+    {
+      "path": "FRLG_VOXEL/lib/compat/legacyBridge/lib/compat/Gen3TabletPointer.lua",
+      "bytes": 33539,
+      "sha256": "0c9d581f6f401412cc86b070f08ca89792c06c54fd8977d1f682552fcdc45acc"
+    },
+    {
+      "path": "FRLG_VOXEL/lib/compat/legacyBridge/lib/compat/HdSpritesCompat.lua",
+      "bytes": 8028,
+      "sha256": "8977d7a75eeda9040bc8a6a28bf93f5f0cfd0d2f9e313de4a7d3ff5eef9e7284"
+    },
+    {
+      "path": "FRLG_VOXEL/lib/compat/legacyBridge/lib/compat/NativeBallFX.lua",
+      "bytes": 33248,
+      "sha256": "360bc6c8749aa59adfec648ce838ef62a75360b55d1c6e54d01b25a63a80ce8d"
+    },
+    {
+      "path": "FRLG_VOXEL/lib/compat/legacyBridge/lib/compat/OpeningBeamFX.lua",
+      "bytes": 15122,
+      "sha256": "4f6a179fc644fde809f984d545ae1c7682ae6f33822a6fecdbe311ac8552c7b5"
+    },
+    {
+      "path": "FRLG_VOXEL/lib/compat/legacyBridge/lib/compat/OverworldProviderRouter.lua",
+      "bytes": 19114,
+      "sha256": "0dc474f790c7c87348f9048273c4218985187416ff9ef202b66911c325ad6ee4"
+    },
+    {
+      "path": "FRLG_VOXEL/lib/compat/legacyBridge/lib/compat/OverworldProviderRows.lua",
+      "bytes": 5059,
+      "sha256": "4a69ae0a1f59e6f1bb8ff07648e63fa740acf9485236279fcdd2d49a35503341"
+    },
+    {
+      "path": "FRLG_VOXEL/lib/compat/legacyBridge/lib/compat/UntamedAdapter.lua",
+      "bytes": 2182,
+      "sha256": "8d5bb1dc2c6a642f2bf6ff3438ae7a407f506d3b857a1731d350ac1ca2a6bb16"
+    },
+    {
+      "path": "FRLG_VOXEL/lib/compat/legacyBridge/lib/compat/UntamedGateCompat.lua",
+      "bytes": 9738,
+      "sha256": "f3c24e3213f65c8313664a733654bc067978d4e3834bdd21bc943fc3ae8fd563"
+    },
+    {
+      "path": "FRLG_VOXEL/lib/compat/legacyBridge/lib/compat/WildsActionCards.lua",
+      "bytes": 1912,
+      "sha256": "7f0acee7516ffae27881a37ed6e1c02fe7939dc36e51d7de414ff97855a38a7d"
+    },
+    {
+      "path": "FRLG_VOXEL/lib/compat/legacyBridge/lib/compat/WildsAtlasCompat.lua",
+      "bytes": 32926,
+      "sha256": "8de53ba28d2b3179d8bf031544d089511122cfbc7449391dd92d8aa759fb4548"
+    },
+    {
+      "path": "FRLG_VOXEL/lib/compat/legacyBridge/lib/compat/WildsAtlasWorker.lua",
+      "bytes": 3787,
+      "sha256": "eac7c7dbcaafa3d0548b9bd4cd275579626c25f01df8627f6a9502581b50d4fd"
+    },
+    {
+      "path": "FRLG_VOXEL/lib/compat/legacyBridge/lib/compat/WildsCapture.lua",
+      "bytes": 3070,
+      "sha256": "41dd5948383ba72cadc491e9ce63104b241f9974bb71da59645608ce0461d584"
+    },
+    {
+      "path": "FRLG_VOXEL/lib/compat/legacyBridge/lib/compat/WildsFireRedAdapter.lua",
+      "bytes": 24361,
+      "sha256": "6184b9ed8f8e017f2eea72884298a2ff41e9b06c5c3349e4f2370ccfcb9a6cc2"
+    },
+    {
+      "path": "FRLG_VOXEL/lib/compat/legacyBridge/lib/compat/WildsFollowerFixCompat.lua",
+      "bytes": 16244,
+      "sha256": "1e2b5f543dc7e395d63eeeb78635c14547ec4cacf7f852ff2c7baa0366b9bfb5"
+    },
+    {
+      "path": "FRLG_VOXEL/lib/compat/legacyBridge/lib/compat/WildsGrowInCompat.lua",
+      "bytes": 6200,
+      "sha256": "3050df6ef66584ce6224582f437d0b598ed8a82c46915ceefae3b120fe1f4783"
+    },
+    {
+      "path": "FRLG_VOXEL/lib/compat/legacyBridge/lib/compat/WildsHostCompat.lua",
+      "bytes": 35766,
+      "sha256": "8cf32a0a615071101bb1483776658630395d315fbe6e7497889c6a776744c5e9"
+    },
+    {
+      "path": "FRLG_VOXEL/lib/compat/legacyBridge/lib/compat/WildsLayersCompat.lua",
+      "bytes": 4368,
+      "sha256": "0920da428734fbb4bbfcf2a7ab63fcebb34d2a0688abe8c275f117c854600d8c"
+    },
+    {
+      "path": "FRLG_VOXEL/lib/compat/legacyBridge/lib/compat/WildsOfHoennCompat.lua",
+      "bytes": 13939,
+      "sha256": "9482f3c16b545fc6e1116874a367b46a48218f2b35c2b23670c9ed8cfd1e6556"
+    },
+    {
+      "path": "FRLG_VOXEL/lib/compat/legacyBridge/lib/compat/WildsReachCompat.lua",
+      "bytes": 17401,
+      "sha256": "eec49acf90f53796c90a25847eaad43abe510e52623bbbb6ac5f24dc8327b20f"
+    },
+    {
+      "path": "FRLG_VOXEL/lib/compat/legacyBridge/lib/compat/WildsSnapshotCompat.lua",
+      "bytes": 31485,
+      "sha256": "5289f7574c23e5e08b42f8311c2e6263542c20f56088ef3f4e183720d8de5294"
+    },
+    {
+      "path": "FRLG_VOXEL/lib/compat/legacyBridge/lib/compat/WildsVisuals.lua",
+      "bytes": 3126,
+      "sha256": "0486daeedc021c9971fd4dc4a8773b57a5763d2637625657bce18bd47f25c63a"
+    },
+    {
+      "path": "FRLG_VOXEL/lib/compat/legacyBridge/lib/compat/WildsWaterSlotsCompat.lua",
+      "bytes": 6118,
+      "sha256": "9b576a4acafb15425b21c04cdda16b22707f3fc9eda1039b64f15c3eda4f703e"
+    },
+    {
+      "path": "FRLG_VOXEL/lib/compat/legacyBridge/lib/Game3Capture.lua",
+      "bytes": 18838,
+      "sha256": "6db6b52d2ef1561584d0f3020331ff168a53c11b9c664381dd098a747297eda7"
+    },
+    {
+      "path": "FRLG_VOXEL/lib/compat/legacyBridge/lib/Game3Data.lua",
+      "bytes": 14999,
+      "sha256": "a3bb682152f54a8231e8f8dd5699657e48d01140da5a5ce8cd9e769c40b7df77"
+    },
+    {
+      "path": "FRLG_VOXEL/lib/compat/legacyBridge/lib/Gen3TabletCamera.lua",
+      "bytes": 9261,
+      "sha256": "c6293aadfa15f02768f8246168633e812a80f440e38211bb295b84757bc5a5c4"
+    },
+    {
+      "path": "FRLG_VOXEL/lib/compat/legacyBridge/lib/Mat4.lua",
+      "bytes": 8981,
+      "sha256": "b6d68f670fdceda2494874aeefac026c958de7e0d12bbd2cb12a4164437669d8"
+    },
+    {
+      "path": "FRLG_VOXEL/lib/compat/legacyBridge/lib/PxContext.lua",
+      "bytes": 9985,
+      "sha256": "6bae879b0a419803851c58fe6d04a27778445c2bb33c8968baed53105104d2cd"
+    },
+    {
+      "path": "FRLG_VOXEL/lib/compat/legacyBridge/lib/QuestHandProps.lua",
+      "bytes": 6286,
+      "sha256": "5c7ec0b96d33b8dc421553ab1d5e312511aa948295a16b0db46a808dd61426b1"
+    },
+    {
+      "path": "FRLG_VOXEL/lib/compat/legacyBridge/lib/QuestHandsRenderer.lua",
+      "bytes": 9344,
+      "sha256": "d65e3b524b29b2f956d8f4d8c3ce5e9e86bf744d7eddce9176e0541da01758be"
+    },
+    {
+      "path": "FRLG_VOXEL/lib/compat/legacyBridge/lib/QuestSecondScreen.lua",
+      "bytes": 2861,
+      "sha256": "fa696f45d85242bb2b26dea1cac4881dd2686f929638adc834b1fd070d4f3594"
+    },
+    {
+      "path": "FRLG_VOXEL/lib/compat/legacyBridge/lib/QuestStereoLayers.lua",
+      "bytes": 4792,
+      "sha256": "bffadbbc8bd6bbcf7d62f1ae27e72e04fc4a31b1c3eaa7ae4e47ab5933e19526"
+    },
+    {
+      "path": "FRLG_VOXEL/lib/compat/legacyBridge/lib/Stubs.lua",
+      "bytes": 4483,
+      "sha256": "507a38b2aa9a07478160e1c05767374e65c339c7af0b1fb5bca98924050fb8cc"
+    },
+    {
+      "path": "FRLG_VOXEL/lib/compat/legacyBridge/lib/Voxel3DShim.lua",
+      "bytes": 8516,
+      "sha256": "b909095b43b9848bef671f54bea0250e0ef0792f3103149b6704fe974f4d46de"
+    },
+    {
+      "path": "FRLG_VOXEL/lib/compat/legacyBridge/lib/VRHandAssets.lua",
+      "bytes": 42088,
+      "sha256": "4c8333a9da9538a41f6b1081f42d690ec1abd05199ad73979306ecf7ec9480ac"
+    },
+    {
+      "path": "FRLG_VOXEL/lib/compat/legacyBridge/lib/VRHandPose.lua",
+      "bytes": 2190,
+      "sha256": "8819ca59ff1189bb3b65e465b5fec098835ba380229277e2471d999b7d873336"
+    },
+    {
+      "path": "FRLG_VOXEL/lib/compat/legacyBridge/lib/VRRig.lua",
+      "bytes": 19085,
+      "sha256": "762161ead23c1ea06740017721aa1cea9d73de6acdd23d729d3b8956c2e34817"
+    },
+    {
+      "path": "FRLG_VOXEL/lib/compat/legacyBridge/lib/WarmQueue.lua",
+      "bytes": 8013,
+      "sha256": "9b86f4b52c03cd0b87efa56f12d1c8844d6a4377fb89ce5de7d9429b40d57b19"
+    },
+    {
+      "path": "FRLG_VOXEL/lib/compat/legacyBridge/lib/WorldPx.lua",
+      "bytes": 3214,
+      "sha256": "057be96e695897bef9d69bb5102912600529c1e870aa044e92cb4525caf9f2da"
+    },
+    {
+      "path": "FRLG_VOXEL/lib/compat/legacyBridge/main.lua",
+      "bytes": 40105,
+      "sha256": "e33c42deb344b2c48d671c1a2adf6b45d22dcecb963baae8bd493fce476ed862"
+    },
+    {
+      "path": "FRLG_VOXEL/lib/compat/LegacyBridge.lua",
+      "bytes": 1909,
+      "sha256": "570b76f648fe70a2b9681c73a5f11b7cf2d2bb15ca591be573c889a96c77f0c3"
+    },
+    {
+      "path": "FRLG_VOXEL/lib/data/Actors.lua",
+      "bytes": 24376,
+      "sha256": "53b46fdf4c7bdf135ef4a30d1c079617bf794c5e00c8b72b1ad87d0e1f2ee895"
+    },
+    {
+      "path": "FRLG_VOXEL/lib/data/SignLabels.lua",
+      "bytes": 5534,
+      "sha256": "c7ce28d14cd8abd4c665b9be25aae781d233eeba1a16f71b11a09b55c94ceb01"
+    },
+    {
+      "path": "FRLG_VOXEL/lib/data/SignMetadata.lua",
+      "bytes": 4777,
+      "sha256": "afefee18c96672ad9f4ecd338f543bfb8a5360862f70b08f4e6485d2c0aed2a8"
+    },
+    {
+      "path": "FRLG_VOXEL/lib/data/SignProfiles.lua",
+      "bytes": 3203,
+      "sha256": "5e5c044299b6df4318ced1f7c0cff5a2485a12b86ec9bc1060e82970538e2218"
+    },
+    {
+      "path": "FRLG_VOXEL/lib/data/WorldSource.lua",
+      "bytes": 67205,
+      "sha256": "0388504477e2f706c9d7d4fc884e48083c45609448076e6361fe7d8746db84c1"
+    },
+    {
+      "path": "FRLG_VOXEL/lib/grass/GrassDeform.lua",
+      "bytes": 6462,
+      "sha256": "aeaf53c198e3b67d78cccc6d636bdb65aceeec2e059dcf0b748889887daf1a29"
+    },
+    {
+      "path": "FRLG_VOXEL/lib/grass/GrassGround.lua",
+      "bytes": 29041,
+      "sha256": "8b60cbf0dbd068ff897bc5dc7823427372ee481c1642a67dc6ac6ce3c1860d72"
+    },
+    {
+      "path": "FRLG_VOXEL/lib/grass/GrassMotion.lua",
+      "bytes": 4793,
+      "sha256": "7d4f4c783209671a799e8533d0d51ff3c840062ef66b8c62eed528def26e1bd2"
+    },
+    {
+      "path": "FRLG_VOXEL/lib/grass/GrassOptions.lua",
+      "bytes": 2830,
+      "sha256": "dd2831b42b52006f498d55ecfb9bcea29971e35554338daae9b136c847de29ac"
+    },
+    {
+      "path": "FRLG_VOXEL/lib/grass/NativeGround.lua",
+      "bytes": 3813,
+      "sha256": "11a298f37a7ab3a5f7132aac91971bcfcd74393fd6e67a90e80a63f88e176dbf"
+    },
+    {
+      "path": "FRLG_VOXEL/lib/grass/RetroGrass.lua",
+      "bytes": 17075,
+      "sha256": "36d3fa07a56fb6b179fd17b30e8e6630609b642f3d2f272bbadac4f38200db02"
+    },
+    {
+      "path": "FRLG_VOXEL/lib/grass/RetroGrassData.lua",
+      "bytes": 2663649,
+      "sha256": "105af78ed5967854ff484afef529db15b1a5c9d29a10089981e649922c9231c7"
+    },
+    {
+      "path": "FRLG_VOXEL/lib/lighting/BuildingLightPolicy.lua",
+      "bytes": 11051,
+      "sha256": "d98b9695c56887a81b58234640c9edc768ee5df02c7678a9c35272542ce77845"
+    },
+    {
+      "path": "FRLG_VOXEL/lib/lighting/FrLightingContext.lua",
+      "bytes": 2715,
+      "sha256": "4321271dc9a63730b70f2b5c83532a683a1da49870fee91c2edcb4046dcb58e1"
+    },
+    {
+      "path": "FRLG_VOXEL/lib/lighting/NativeLightingConfig.lua",
+      "bytes": 723,
+      "sha256": "bf50df8940b245e9bf3f9bbde86cd95dd61e7fce2666afddf73a97a645f70782"
+    },
+    {
+      "path": "FRLG_VOXEL/lib/mesh/CeladonBuildingProfiles.lua",
+      "bytes": 10318,
+      "sha256": "91b498ecdfc0ebd87ad50a7f4adfb5015fc5e4ace84f7143a4f782311a577b2f"
+    },
+    {
+      "path": "FRLG_VOXEL/lib/mesh/CinnabarProfiles.lua",
+      "bytes": 7282,
+      "sha256": "ea2ab5b62e59601076f638b736fd0e9849179204e7a5f3b2e0746c7872d57787"
+    },
+    {
+      "path": "FRLG_VOXEL/lib/mesh/Constants.lua",
+      "bytes": 14795,
+      "sha256": "d359f6d70a3afbddd2bb8de45dc414e9fa446d008010c10f15b86e1b726d8991"
+    },
+    {
+      "path": "FRLG_VOXEL/lib/mesh/FrlgBuildingProfiles.lua",
+      "bytes": 1214,
+      "sha256": "c3808872c4bc77dac157dedc1dc0a55366b6f8ed2883bd3640e912ffd854b051"
+    },
+    {
+      "path": "FRLG_VOXEL/lib/mesh/FrlgConnectedHouseNative.lua",
+      "bytes": 24174,
+      "sha256": "4307c1eca9896a75ce6e9905d0d3a753eda44726a72da8f896b655baa34af2c9"
+    },
+    {
+      "path": "FRLG_VOXEL/lib/mesh/FrlgElevationProfiles.lua",
+      "bytes": 252629,
+      "sha256": "730c5b34e30abb3fae1a03d5643436f611c6ee472cde0ee4cf2ce5b0b8e62076"
+    },
+    {
+      "path": "FRLG_VOXEL/lib/mesh/FrlgFlora.lua",
+      "bytes": 116862,
+      "sha256": "590673060da1e2dce4110a979f603e3fd843c64d1abb366392ad01094b71d70a"
+    },
+    {
+      "path": "FRLG_VOXEL/lib/mesh/FrlgInteriors.lua",
+      "bytes": 117732,
+      "sha256": "b870dbb74e866ad9390ee6acbf263229a07e440261929897032f9d84f5c5c562"
+    },
+    {
+      "path": "FRLG_VOXEL/lib/mesh/FrlgMesher.lua",
+      "bytes": 1950360,
+      "sha256": "b56fba2056e3f05c610bd842a80e681a323a4c6bd0115ac1d6ba816559edbc2a"
+    },
+    {
+      "path": "FRLG_VOXEL/lib/mesh/FrlgNativeFoliage.lua",
+      "bytes": 23013,
+      "sha256": "2f34286890f2f63e815f47bce7e84407e9aade33160b4ccab7ca9500cb6c7e2b"
+    },
+    {
+      "path": "FRLG_VOXEL/lib/mesh/FrlgStairs.lua",
+      "bytes": 12931,
+      "sha256": "b75c2f7f0f5b17e480eb1f2dcfa5979292de89b739d737c8d171464915e039c9"
+    },
+    {
+      "path": "FRLG_VOXEL/lib/mesh/FrlgTowerNative.lua",
+      "bytes": 33908,
+      "sha256": "9b56f2a2d18bc21dbcd46ed8bfce12d5708dcf4a03340679687f9c4b3314193e"
+    },
+    {
+      "path": "FRLG_VOXEL/lib/mesh/interiors/Ceiling.lua",
+      "bytes": 53568,
+      "sha256": "5cb74ac56f133a300419f6e24861c38eabc70de53b0cffd8284f16f76c61d1b8"
+    },
+    {
+      "path": "FRLG_VOXEL/lib/mesh/interiors/Doors.lua",
+      "bytes": 31300,
+      "sha256": "d91a315f13dca8ca162cb419c43c3768d77caf2ea61df8e98fc2207919acf9fe"
+    },
+    {
+      "path": "FRLG_VOXEL/lib/mesh/interiors/Kit.lua",
+      "bytes": 10317,
+      "sha256": "0819f4420a096bf3a46612dd74a7f56ce74a87b63c2ae6fe59ab239133edee8d"
+    },
+    {
+      "path": "FRLG_VOXEL/lib/mesh/interiors/PropFix.lua",
+      "bytes": 48837,
+      "sha256": "67bcf50cf48055e89c5ce2a1c1af7c019fd6746b61362eb545f310023c50af72"
+    },
+    {
+      "path": "FRLG_VOXEL/lib/mesh/interiors/props/Bed.lua",
+      "bytes": 13663,
+      "sha256": "b43f42054ddc9530d488f997cbe287761f2cf5bbd5af00f6248294431b6ec50c"
+    },
+    {
+      "path": "FRLG_VOXEL/lib/mesh/interiors/props/Bin.lua",
+      "bytes": 6543,
+      "sha256": "0ece365584884bfc9dabbdef18bc25f95763b92f9941a18670a680f38a2836f9"
+    },
+    {
+      "path": "FRLG_VOXEL/lib/mesh/interiors/props/Bookshelf.lua",
+      "bytes": 12714,
+      "sha256": "6c4fdba77fc8d3ae0212e55b04e54c24dd2a6a2c5b02f9b7b8a5b058e4f7530d"
+    },
+    {
+      "path": "FRLG_VOXEL/lib/mesh/interiors/props/Cabinet.lua",
+      "bytes": 10981,
+      "sha256": "1304bb5b563c5eb5ed045ec550ed0760f154adaa204573ee509ddc6cb3237bc6"
+    },
+    {
+      "path": "FRLG_VOXEL/lib/mesh/interiors/props/CableClub.lua",
+      "bytes": 7515,
+      "sha256": "de468400b7ff8741299f3039790eb84fca0b906409dcaf96a18bcecf8991ac80"
+    },
+    {
+      "path": "FRLG_VOXEL/lib/mesh/interiors/props/Counter.lua",
+      "bytes": 15290,
+      "sha256": "d7ead8a4732b4373b4ba55661692ad2b1b3b467b5c49e41b94853792e89f3d38"
+    },
+    {
+      "path": "FRLG_VOXEL/lib/mesh/interiors/props/Crate.lua",
+      "bytes": 20714,
+      "sha256": "921c94bff050400aefb5aae4c84da59425d39d3b8e17762a099036827e3db2b6"
+    },
+    {
+      "path": "FRLG_VOXEL/lib/mesh/interiors/props/Desk.lua",
+      "bytes": 17482,
+      "sha256": "8424f9c21e4d960d0b2ecc1376b951034cae40c57d974c727983f75857c259c1"
+    },
+    {
+      "path": "FRLG_VOXEL/lib/mesh/interiors/props/GameCorner.lua",
+      "bytes": 16163,
+      "sha256": "f1f3a203dca15e4c3908ea98b4562fceb1b6e54eaa1fad90d60a1bd2f07a691c"
+    },
+    {
+      "path": "FRLG_VOXEL/lib/mesh/interiors/props/Grave.lua",
+      "bytes": 8606,
+      "sha256": "2eae9f90aea141697b257c3c1deefcb6e959f625562020cd4bba49f4b275f8a8"
+    },
+    {
+      "path": "FRLG_VOXEL/lib/mesh/interiors/props/Healer.lua",
+      "bytes": 9836,
+      "sha256": "198a3fc677d6294b47eef42245f0a78134b492a4ba3a7a921f2eb03742460677"
+    },
+    {
+      "path": "FRLG_VOXEL/lib/mesh/interiors/props/Kitchen.lua",
+      "bytes": 13940,
+      "sha256": "fa41f9089d9fb228a1e953fde78c2e88ec94467c63a73c5d7cecce8626cc9e1a"
+    },
+    {
+      "path": "FRLG_VOXEL/lib/mesh/interiors/props/Machine.lua",
+      "bytes": 14679,
+      "sha256": "2fed853941bbe8d28733193695cdad5802b641702eb96fda5ece92cbd9882379"
+    },
+    {
+      "path": "FRLG_VOXEL/lib/mesh/interiors/props/MartShelf.lua",
+      "bytes": 12576,
+      "sha256": "db4f6570ce7f0f1894f1b5fb21dbc61fee74234c2863a3b7fbd15bf3f516d32b"
+    },
+    {
+      "path": "FRLG_VOXEL/lib/mesh/interiors/props/OneOff.lua",
+      "bytes": 18529,
+      "sha256": "731759fac5dd7075e14f729897d2dbbf6cf1ef13ef5c3d19c9a5293bc49983bb"
+    },
+    {
+      "path": "FRLG_VOXEL/lib/mesh/interiors/props/PC.lua",
+      "bytes": 3532,
+      "sha256": "3d7609d83ec506de28d97275cd3adf5cbb4a2b77b97acaefaf176a48b4ebcced"
+    },
+    {
+      "path": "FRLG_VOXEL/lib/mesh/interiors/props/Pillar.lua",
+      "bytes": 6716,
+      "sha256": "7176e8be0692835926745cad45804b23cdf5f1696e8055a94222647257675038"
+    },
+    {
+      "path": "FRLG_VOXEL/lib/mesh/interiors/props/Plant.lua",
+      "bytes": 8251,
+      "sha256": "f68075674ca705dd9c61d9b2f90392bf19a07ed0d8bf27d2850233e7567185c6"
+    },
+    {
+      "path": "FRLG_VOXEL/lib/mesh/interiors/props/Rail.lua",
+      "bytes": 10088,
+      "sha256": "26e6c4f004770975a9b807f12f64f335bcebef0ef826379db41b4a962f7a97b6"
+    },
+    {
+      "path": "FRLG_VOXEL/lib/mesh/interiors/props/Registry.lua",
+      "bytes": 1004,
+      "sha256": "c1fefb03e2b30b8301dc0f4e9a868c160f38bd9762b933b7cee7470c28084ca2"
+    },
+    {
+      "path": "FRLG_VOXEL/lib/mesh/interiors/props/Relief.lua",
+      "bytes": 19209,
+      "sha256": "f0fe4d9c0e9cd210c9ebffc6cdb964a3e287efa5f01c125aabeb1d9780407233"
+    },
+    {
+      "path": "FRLG_VOXEL/lib/mesh/interiors/props/Seat.lua",
+      "bytes": 11614,
+      "sha256": "4693a0a74840915db87af8519c8a78a097335611e0953d7c497070a510945012"
+    },
+    {
+      "path": "FRLG_VOXEL/lib/mesh/interiors/props/Statue.lua",
+      "bytes": 9601,
+      "sha256": "090176d372052a9770752b40e056c8552cb747e7c0f72f86a0010404ccd1f24e"
+    },
+    {
+      "path": "FRLG_VOXEL/lib/mesh/interiors/props/Table.lua",
+      "bytes": 6865,
+      "sha256": "03bdd490ef48729684227bd73879568950c365a0f351cbfb789a410895d91572"
+    },
+    {
+      "path": "FRLG_VOXEL/lib/mesh/interiors/props/Telephone.lua",
+      "bytes": 20730,
+      "sha256": "45be295b040f1b9303f0c3e74bbd9379d981267221340141d897224719bf1a21"
+    },
+    {
+      "path": "FRLG_VOXEL/lib/mesh/interiors/props/TV.lua",
+      "bytes": 7788,
+      "sha256": "719c629b69c8b7b94850c39e537aadb78bc3246eaf2fec13a747420d109e838c"
+    },
+    {
+      "path": "FRLG_VOXEL/lib/mesh/interiors/PropTypes.lua",
+      "bytes": 34065,
+      "sha256": "16752264a330a02cc7354eb0f07f2b852f1f5cb7a5b91c0ea43c680be0e8b510"
+    },
+    {
+      "path": "FRLG_VOXEL/lib/mesh/interiors/SectionMap.lua",
+      "bytes": 12545,
+      "sha256": "0314016cd815f81d279e0d0fdcd433412557e2d10d55d1e37d8ca8bf17e4f541"
+    },
+    {
+      "path": "FRLG_VOXEL/lib/mesh/LaboratoryProfiles.lua",
+      "bytes": 4494,
+      "sha256": "883d1b1faf185178c17f16a1a50939156bb09a7803a998bfb4e6adc49d5a5532"
+    },
+    {
+      "path": "FRLG_VOXEL/lib/mesh/MB.lua",
+      "bytes": 12916,
+      "sha256": "3bebf2b93d85371b2d492022859b2b0ae71c876b1786d3550de0f8b82770c114"
+    },
+    {
+      "path": "FRLG_VOXEL/lib/mesh/MuseumProfiles.lua",
+      "bytes": 827397,
+      "sha256": "5ca79648055b7d7d42bbd3249b1f336e466e00ab1cf1cc901df105b26002270f"
+    },
+    {
+      "path": "FRLG_VOXEL/lib/mesh/NativeGrayGate.lua",
+      "bytes": 22854,
+      "sha256": "118a8938e808fb9dc719aa2b87971ac8433628abaf5ac4b5ec05488bde5e0989"
+    },
+    {
+      "path": "FRLG_VOXEL/lib/mesh/NetworkCenterProfiles.lua",
+      "bytes": 5260,
+      "sha256": "0bf77175ef650cda0bebf4958b47b16b1c38d4233f22b55c7d1ad763951fb053"
+    },
+    {
+      "path": "FRLG_VOXEL/lib/mesh/PewterHouseProfiles.lua",
+      "bytes": 93493,
+      "sha256": "098a8b14775615f8fa94861b671b17b3728bc227a30c5e5f64abe2a0b5fbda5d"
+    },
+    {
+      "path": "FRLG_VOXEL/lib/mesh/Route12Profiles.lua",
+      "bytes": 5386,
+      "sha256": "b33e84abe61911c957c925e730f66f057a7b33006221481295e2531c2ca0f220"
+    },
+    {
+      "path": "FRLG_VOXEL/lib/mesh/SafariNorthProfiles.lua",
+      "bytes": 7284,
+      "sha256": "faf95440966d8e0d9cbb1838eb0b0df8cd603cfeb5907a02c36baa4d6a5a5673"
+    },
+    {
+      "path": "FRLG_VOXEL/lib/mesh/SaffronYellowProfiles.lua",
+      "bytes": 13781,
+      "sha256": "d2db090bd3673d4ef0d5d44095730ea0507c1eecabe124d874b93c4bf8cafacd"
+    },
+    {
+      "path": "FRLG_VOXEL/lib/mesh/SeviiPurpleProfiles.lua",
+      "bytes": 220068,
+      "sha256": "471ee54d24007f24352c97087945b040099f78673a54870aae3f9b1653dc909c"
+    },
+    {
+      "path": "FRLG_VOXEL/lib/mesh/SilphProfiles.lua",
+      "bytes": 10914,
+      "sha256": "64c20575032667c077218f0cbc5748ea1dc92687dfb2daae63d363dbd409782e"
+    },
+    {
+      "path": "FRLG_VOXEL/lib/mesh/SpecialBuildingProfiles.lua",
+      "bytes": 8852,
+      "sha256": "b4a945b0a540acd756951571b1753ed2c220f3807ce47819e352b018d9e1b232"
+    },
+    {
+      "path": "FRLG_VOXEL/lib/mesh/TanobyProfiles.lua",
+      "bytes": 13873,
+      "sha256": "120f2a109162f2153e077ebdff7a8dfcfebbb9335fc655378d65c39aba7ddd34"
+    },
+    {
+      "path": "FRLG_VOXEL/lib/mesh/ThreeIslandProfiles.lua",
+      "bytes": 14033,
+      "sha256": "a10f3ff2297476a826a57ac7516bbe29599b9a3ff534dbf6dbe9763dcb003948"
+    },
+    {
+      "path": "FRLG_VOXEL/lib/mesh/UnresolvedSpecialProfiles.lua",
+      "bytes": 8839,
+      "sha256": "a2fdffa3465a1abcbd3489339bac55bbc067e8ad3ba6613801a3ab35025d160d"
+    },
+    {
+      "path": "FRLG_VOXEL/lib/mesh/VermilionHouseProfiles.lua",
+      "bytes": 1984182,
+      "sha256": "f23c77f2853da82518f8e62fa7f325b8988f51905a31bea84cd1a48958007266"
+    },
+    {
+      "path": "FRLG_VOXEL/lib/perf/EyeLedger.lua",
+      "bytes": 10494,
+      "sha256": "9c443459e5f9e600e78d9cabf1e1ce5e4c1c71df2b0ebacc224b3081f0f15c41"
+    },
+    {
+      "path": "FRLG_VOXEL/lib/perf/FrPrecache.lua",
+      "bytes": 49063,
+      "sha256": "0f9a84e33979eaf78f597d575ae2a3e264279b07647ac1b85bdcf2cffe40e094"
+    },
+    {
+      "path": "FRLG_VOXEL/lib/perf/FrPrecacheFormat.lua",
+      "bytes": 10046,
+      "sha256": "3f84e84458d4222748050f164f6d0c43880085061c0af56cc48fca509784cc50"
+    },
+    {
+      "path": "FRLG_VOXEL/lib/perf/FrPrecacheKey.lua",
+      "bytes": 19961,
+      "sha256": "fe4f090f042940e34e9e497b87e8041d20fe641aa51aa52cd0d20fd6c6d807f9"
+    },
+    {
+      "path": "FRLG_VOXEL/lib/perf/FrPrecacheStore.lua",
+      "bytes": 8900,
+      "sha256": "73b075d8ae2b2587a53ab80c88887175deec7466fa185def939b79cebee806d6"
+    },
+    {
+      "path": "FRLG_VOXEL/lib/perf/FrPrepare.lua",
+      "bytes": 31310,
+      "sha256": "a94f5d26df16118ef453b6d617fd9458e9bf311e43d0a8638044022e7bbf4cae"
+    },
+    {
+      "path": "FRLG_VOXEL/lib/perf/PrepareHost.lua",
+      "bytes": 6657,
+      "sha256": "c92da19a778c22cb197d1f8dea1fcfa4f465b5758567ccedc192a90b88cc7488"
+    },
+    {
+      "path": "FRLG_VOXEL/lib/perf/Speed58.lua",
+      "bytes": 1976,
+      "sha256": "b2722cb5bee512c523d4f73f80c8af868b047a8ca66a66e1590f3e11162226da"
+    },
+    {
+      "path": "FRLG_VOXEL/lib/quest/CollectorExperiment.lua",
+      "bytes": 6819,
+      "sha256": "db9abb88d03c3b3f07def8334839f81a8e23165e4ac3d4aea24235b17a8060f4"
+    },
+    {
+      "path": "FRLG_VOXEL/lib/quest/FlatRate.lua",
+      "bytes": 11659,
+      "sha256": "d6345d27b71f6b1d1a4d42519708d72d04f8aff9a5a739d8809372a8d202dbdf"
+    },
+    {
+      "path": "FRLG_VOXEL/lib/quest/FramePacer.lua",
+      "bytes": 85191,
+      "sha256": "84b3fe4dea46e6b34ea2a27a1ce7f964bb0c627da03664cdf268b735f5d48e42"
+    },
+    {
+      "path": "FRLG_VOXEL/lib/quest/FreeMove.lua",
+      "bytes": 44499,
+      "sha256": "992720c333ff0a6fdedad11d996e0a718c857d4ceb896819e2623b82261360ba"
+    },
+    {
+      "path": "FRLG_VOXEL/lib/quest/GcSlack.lua",
+      "bytes": 13018,
+      "sha256": "29de43bc3dae278bd85bea3717f2d7338f28cf17cab966182b22eade99ba467f"
+    },
+    {
+      "path": "FRLG_VOXEL/lib/quest/HostApi.lua",
+      "bytes": 44619,
+      "sha256": "faa5159a2210ad0bb55c03fba243c474d8168822a59010badb0724123ca32cec"
+    },
+    {
+      "path": "FRLG_VOXEL/lib/quest/HostLayers.lua",
+      "bytes": 9149,
+      "sha256": "54990b0eda30e8adc2fc9662b65336058cef0ee1d0b80522595fbd5ec8f61021"
+    },
+    {
+      "path": "FRLG_VOXEL/lib/quest/InputMap.lua",
+      "bytes": 10999,
+      "sha256": "91e27226bf507f634156240c1aee8532a7bfbfcc6e0bf37a934444f511072559"
+    },
+    {
+      "path": "FRLG_VOXEL/lib/quest/MrLink.lua",
+      "bytes": 4745,
+      "sha256": "539705dde54a73fa19701aa65778e65bb705105e5d181c0057858acb189d9872"
+    },
+    {
+      "path": "FRLG_VOXEL/lib/quest/VrControls.lua",
+      "bytes": 24572,
+      "sha256": "4916d2c01ff8b733c545add5f1f3b2db4ab5de9ddd97359a07e1b2394bacb93f"
+    },
+    {
+      "path": "FRLG_VOXEL/lib/quest/VritkGate.lua",
+      "bytes": 1249,
+      "sha256": "d45959f33558fdbe210a7c17e495e0b3ed552919a69c77bc488519fa7de283a6"
+    },
+    {
+      "path": "FRLG_VOXEL/lib/quest/WeatherHost.lua",
+      "bytes": 5576,
+      "sha256": "b37e8110d891382428f4ea583702b8d2f1f5be49b41e51f1dd54813dc5f090a3"
+    },
+    {
+      "path": "FRLG_VOXEL/lib/quest/WeatherHostLib.lua",
+      "bytes": 10353,
+      "sha256": "71abff23b6ac5bda6c88690879213229a4e798593fef7af802cc320027b2cf05"
+    },
+    {
+      "path": "FRLG_VOXEL/lib/quest/XRSession.lua",
+      "bytes": 17383,
+      "sha256": "b81a67c49f946dd9f5315fc0c7b883c3334adbd3141deebc1cae7a9b7ce69db2"
+    },
+    {
+      "path": "FRLG_VOXEL/lib/render/AtmosSky.lua",
+      "bytes": 6065,
+      "sha256": "4ffc7d1e39960c8e633b14bc54c573834e86aae11f7486a8ddecaaf3a56531b6"
+    },
+    {
+      "path": "FRLG_VOXEL/lib/render/AtmosState.lua",
+      "bytes": 8999,
+      "sha256": "7cea080ea54edc5409fcfadc0d4a566593d870ab7d28acb7b2a52ebdf07c7117"
+    },
+    {
+      "path": "FRLG_VOXEL/lib/render/AtmosTime.lua",
+      "bytes": 6930,
+      "sha256": "affcfa2f83e80f10dbdd887d79f4451b2d32da075d50fbb602f0ea0bab04123d"
+    },
+    {
+      "path": "FRLG_VOXEL/lib/render/Billboards.lua",
+      "bytes": 33508,
+      "sha256": "e3f044eb929e04bad5d83bc68bcf8b50ca4785a6e63dddf06ed229c058ff414f"
+    },
+    {
+      "path": "FRLG_VOXEL/lib/render/Camera.lua",
+      "bytes": 18707,
+      "sha256": "33677615dce8b6c0e5344fa021542ccb9b996b11c99445c36a6fbc57cbc95a53"
+    },
+    {
+      "path": "FRLG_VOXEL/lib/render/CaveDark.lua",
+      "bytes": 3120,
+      "sha256": "db8bc76a7eabe25fe111646123881635bd7b1178634c75009b23f55590729499"
+    },
+    {
+      "path": "FRLG_VOXEL/lib/render/Emissive.lua",
+      "bytes": 8071,
+      "sha256": "69fca0bd6988bd8cccd0556d00683f89ede82fbf53b411959858c3c4052811f0"
+    },
+    {
+      "path": "FRLG_VOXEL/lib/render/FrFog.lua",
+      "bytes": 1674,
+      "sha256": "fa2e0615bc197972933d4dd5e35834124cf2fd864c3f79e8d4f5d4c3481ad6b7"
+    },
+    {
+      "path": "FRLG_VOXEL/lib/render/FrlgTreeView.lua",
+      "bytes": 2918,
+      "sha256": "5218ff410ca28527a98adaa542d807202d81333413eb866cfa1e25ecccbf5cda"
+    },
+    {
+      "path": "FRLG_VOXEL/lib/render/FrLightingBuild.lua",
+      "bytes": 3875,
+      "sha256": "3a02d8c7018b1d8d20e7fad349324bb5c067dcaf7d95b01eebe896e231f370f4"
+    },
+    {
+      "path": "FRLG_VOXEL/lib/render/FrLightingRuntime.lua",
+      "bytes": 3935,
+      "sha256": "bb578a554ec58535919057e8859285686398fb685b8696a1b5afaa99a8786f09"
+    },
+    {
+      "path": "FRLG_VOXEL/lib/render/FrPaneCollector.lua",
+      "bytes": 2209,
+      "sha256": "7959904c1e303ddf4a3c7a921d8d5ed4f6f6484e4c9d236c55b292b13149d4f0"
+    },
+    {
+      "path": "FRLG_VOXEL/lib/render/FrPaneMetadata.lua",
+      "bytes": 4877,
+      "sha256": "73c032f12582280e946f8d8714b30c556d42aded2ea266733a82883aa2ac295d"
+    },
+    {
+      "path": "FRLG_VOXEL/lib/render/FrShrubView.lua",
+      "bytes": 5547,
+      "sha256": "3ae5623629b87b4efff70024736b1931b7b9c35344c9bc9f4895e6f5c14ff838"
+    },
+    {
+      "path": "FRLG_VOXEL/lib/render/Gen3StormGrade.lua",
+      "bytes": 1511,
+      "sha256": "1199f90ebf572ab83dc2fe8397f81209681f771007a968ba4ce358ea74e5feef"
+    },
+    {
+      "path": "FRLG_VOXEL/lib/render/HealerBalls.lua",
+      "bytes": 9367,
+      "sha256": "d2aecef2451f00e624e42dd7434429f4a58d1db7668f69cc4cd68e4d5987a984"
+    },
+    {
+      "path": "FRLG_VOXEL/lib/render/Light.lua",
+      "bytes": 22498,
+      "sha256": "8407bb9c61a903f2ba5fc6abae7b758b1866a909e48074180f540f8c603c42fa"
+    },
+    {
+      "path": "FRLG_VOXEL/lib/render/LightingUniforms.lua",
+      "bytes": 1398,
+      "sha256": "bb58adde1d7c2d61f1fd55437e7da40195135afd260151bf8f73974099be6790"
+    },
+    {
+      "path": "FRLG_VOXEL/lib/render/LightPools.lua",
+      "bytes": 8074,
+      "sha256": "e53b4aad45281340487943094f394b522d63c03d0f496ed5d56fed354ff39fd5"
+    },
+    {
+      "path": "FRLG_VOXEL/lib/render/LoadingGate.lua",
+      "bytes": 4190,
+      "sha256": "b4a95eac1770e7ddcec6eeeda6897fc1ec2362a6b26ec99746fb6096c57929dd"
+    },
+    {
+      "path": "FRLG_VOXEL/lib/render/Mat4.lua",
+      "bytes": 4392,
+      "sha256": "d9436e892ee1e79704b6d9485808f9ab80b374f57344d9fc3117eb40f1850b50"
+    },
+    {
+      "path": "FRLG_VOXEL/lib/render/Mip.lua",
+      "bytes": 15192,
+      "sha256": "2b87270e31f1feb0474dd61b323813d1fe4b0b8171c49ed6fa6b3072764e7f12"
+    },
+    {
+      "path": "FRLG_VOXEL/lib/render/NativeLightPass.lua",
+      "bytes": 12276,
+      "sha256": "f0068395f2f62b3edd30c407b72f02a614f76d5699cc4e8215c612c45bf1b690"
+    },
+    {
+      "path": "FRLG_VOXEL/lib/render/NativeStreetLamps.lua",
+      "bytes": 5841,
+      "sha256": "5f21e9f5712d4d1c26fb2e66975e64944ffc2002d067ddfb103c8019ffa97252"
+    },
+    {
+      "path": "FRLG_VOXEL/lib/render/OutdoorPerf.lua",
+      "bytes": 7356,
+      "sha256": "dffe6399831093da9f943e0bb26eae8cf30fb5c85e44b584a727700f79780f73"
+    },
+    {
+      "path": "FRLG_VOXEL/lib/render/Panel.lua",
+      "bytes": 9563,
+      "sha256": "5c29f5dc28dc3e8bf9b1435b0151ab42ad78566aa3c2d6739f7a556938e5f318"
+    },
+    {
+      "path": "FRLG_VOXEL/lib/render/PrepareScreen.lua",
+      "bytes": 5374,
+      "sha256": "460b2ab65b74e07dcf113df63ebeaacee6558fdf9dc60d91885e54dce7f19a5c"
+    },
+    {
+      "path": "FRLG_VOXEL/lib/render/Scene.lua",
+      "bytes": 131938,
+      "sha256": "4bc2f01e8be67b0c6e0a1259dcd41715bde43cfa14f3cd179ab2f8a8fc384736"
+    },
+    {
+      "path": "FRLG_VOXEL/lib/render/Sea.lua",
+      "bytes": 8408,
+      "sha256": "65675a9177d35dffa894e3837a07f63c0590f544f5ba207635c64430942ee5d2"
+    },
+    {
+      "path": "FRLG_VOXEL/lib/render/Shaders.lua",
+      "bytes": 39603,
+      "sha256": "88788e28b1ac3332a933037c09d12f3af5cd306f8b9a59a9df36f8b7321fa615"
+    },
+    {
+      "path": "FRLG_VOXEL/lib/render/SignPixelFont.lua",
+      "bytes": 4180,
+      "sha256": "0bd5f4f99e53ad75396ff96aac789b76c51f6e7df7a0e2fcd47c46d399df3a42"
+    },
+    {
+      "path": "FRLG_VOXEL/lib/render/SignRuntime.lua",
+      "bytes": 23720,
+      "sha256": "90a86c4a773a95293f7ab7fdec63ac4210c1c7e63acb8cc79524f4457acf7f80"
+    },
+    {
+      "path": "FRLG_VOXEL/lib/render/Sky.lua",
+      "bytes": 11780,
+      "sha256": "f95b949ef52454fde553d329d60c3c0eac85e6fe4c0432c42b502751edc58b19"
+    },
+    {
+      "path": "FRLG_VOXEL/lib/render/SolarShadows.lua",
+      "bytes": 18710,
+      "sha256": "62015079dcfc1a89c78f3506cd5c6747e6bfd7e9cdb78ae7f1bac5adb4bbf6b3"
+    },
+    {
+      "path": "FRLG_VOXEL/lib/render/StubMesher.lua",
+      "bytes": 3706,
+      "sha256": "1519041f29289d7750d141a775c78be4318df0e5ab048353adbc9abbe5f356bb"
+    },
+    {
+      "path": "FRLG_VOXEL/lib/render/View.lua",
+      "bytes": 38123,
+      "sha256": "4480ea8aa02e22edf54b4266a9dd282501a83ba64a33e72c41a4cce746629904"
+    },
+    {
+      "path": "FRLG_VOXEL/lib/render/VoxelLoading.lua",
+      "bytes": 7237,
+      "sha256": "f3cef63d35461b0da9fb7715185a16fbcc9fe0089ec6e296acdfb40e665bd4cd"
+    },
+    {
+      "path": "FRLG_VOXEL/main.lua",
+      "bytes": 111353,
+      "sha256": "c9657e7786a242f18016857723b5dd3062b537d768294d2f8ad9d13e9914b40d"
+    },
+    {
+      "path": "FRLG_VOXEL/manifest.json",
+      "bytes": 645,
+      "sha256": "58a8b652931a39913f7dd8d64ee37e427358567b8c195888c7e81636497f1c5e"
+    },
+    {
+      "path": "LICENSE.txt",
+      "bytes": 2413,
+      "sha256": "843420c4f6ccc2ee10e3238b8110619d3b83a8afcf677f4952731323c2eff504"
+    },
+    {
+      "path": "README.md",
+      "bytes": 4568,
+      "sha256": "9fe02c34f3139affc86a020696a2cfabe0571b922119c9f91c4e3313650fe4eb"
+    },
+    {
+      "path": "tests/test_local_loader.lua",
+      "bytes": 917,
+      "sha256": "282df7c78820f1722c6722564a41168d56910e8a99a52acf39e307faced26de1"
+    },
+    {
+      "path": "THIRD_PARTY_NOTICES.md",
+      "bytes": 1549,
+      "sha256": "eec18f657d83077e616d49f57609a4b42dd9c940a74ae8212a0dded05fe89308"
+    },
+    {
+      "path": "tools/verify_package.py",
+      "bytes": 1851,
+      "sha256": "8930d5baa635d3d43086355e9e3df73aa012355e1a86ea9b2197e7cf8d4ea04a"
+    },
+    {
+      "path": "VRITK_FRLG_HOST/lib/compat/HdSpritesCompat.lua",
+      "bytes": 386,
+      "sha256": "ca3eae98f7ec81b124d60ec7b431092743008e9861464e463b0e4e61cf63a89d"
+    },
+    {
+      "path": "VRITK_FRLG_HOST/main.lua",
+      "bytes": 327,
+      "sha256": "19ea5985b0b72ed9b070f22b22aa6a23cba7057cd38698aaa42352dbb0cf567f"
+    },
+    {
+      "path": "VRITK_FRLG_HOST/manifest.json",
+      "bytes": 749,
+      "sha256": "8fdaf1d5fa5cd0cc21cc89fefddf0c76c45af29088200f274095fe04b8dbad4c"
+    }
+  ]
+}

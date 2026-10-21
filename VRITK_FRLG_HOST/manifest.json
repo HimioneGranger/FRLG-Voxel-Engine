@@ -1,0 +1,28 @@
+{
+  "id": "VRITK_FRLG_HOST",
+  "name": "FRLG Voxel Engine legacy compatibility discovery",
+  "version": "0.2.0-lab8.2",
+  "api": 2,
+  "entry": "main.lua",
+  "profile": "content",
+  "category": "GRAPHICS",
+  "games": [
+    "firered",
+    "leafgreen",
+    "emerald"
+  ],
+  "game_version": "0.0.0-dev || >=0.3.22 <1.0.0",
+  "priority": 130,
+  "dependencies": [
+    "FRLG_VOXEL"
+  ],
+  "optional_dependencies": [
+    "wilds_of_hoenn"
+  ],
+  "permissions": [
+    "engine_internals",
+    "compute"
+  ],
+  "affects_link": false,
+  "description": "Bundled discovery shim. All substantive compatibility implementation and licensed assets are owned by the FRLG_VOXEL directory. Do not install beside another VRITK_FRLG_HOST copy."
+}

@@ -1,0 +1,21 @@
+{
+  "id": "FRLG_VOXEL",
+  "name": "FRLG Voxel Engine — Beta",
+  "version": "0.1.0-beta.1",
+  "api": 2,
+  "entry": "main.lua",
+  "profile": "content",
+  "category": "GRAPHICS",
+  "games": [
+    "firered",
+    "leafgreen"
+  ],
+  "game_version": "0.0.0-dev || >=0.3.22 <1.0.0",
+  "priority": 120,
+  "dependencies": [],
+  "permissions": [
+    "engine_internals"
+  ],
+  "affects_link": false,
+  "description": "FireRed/LeafGreen voxel/render engine evaluation beta, including reviewed native buildings and accepted compiled caves. Compatible Gen 3 host and local game data required. Optional gameplay mods are not included."
+}
