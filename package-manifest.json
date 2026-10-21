@@ -1313,13 +1313,13 @@
     },
     {
       "path": "LICENSE.txt",
-      "bytes": 2413,
-      "sha256": "843420c4f6ccc2ee10e3238b8110619d3b83a8afcf677f4952731323c2eff504"
+      "bytes": 3454,
+      "sha256": "125d4e7367003cc389310cb9108319547bcbf514eed7f2f14e45283671614d80"
     },
     {
       "path": "README.md",
-      "bytes": 4568,
-      "sha256": "9fe02c34f3139affc86a020696a2cfabe0571b922119c9f91c4e3313650fe4eb"
+      "bytes": 4911,
+      "sha256": "d1669bafa9a1f6bb4e5b259720a5ed80de21d2891b6796f4f921e08593176585"
     },
     {
       "path": "tests/test_local_loader.lua",

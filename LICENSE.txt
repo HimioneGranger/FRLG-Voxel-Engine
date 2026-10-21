@@ -16,25 +16,40 @@ Copyright (c) 2026 HimioneGranger. All rights reserved, except as stated below.
    except with separate written permission from the copyright holder or where
    an applicable third-party license independently grants that permission.
 
-4. GitHub functionality. These terms do not restrict permissions required by
+4. Beta forks and derivatives. All forks and other modified versions of this
+   beta remain limited to private, noncommercial use under these terms.
+   Releasing a beta-derived fork, build or derivative publicly requires prior,
+   explicit written permission from the copyright holder, HimioneGranger.
+   This includes public release packages and distribution outside GitHub's
+   required viewing/forking functionality. Preserve this notice in beta forks.
+   This restriction is subject to section 5 and independently applicable
+   third-party licenses.
+
+5. GitHub functionality. These terms do not restrict permissions required by
    GitHub's Terms of Service for content intentionally hosted publicly,
    including viewing and forking through GitHub. Public visibility does not
    otherwise make this beta open source or grant unrestricted reuse rights.
 
-5. Contributions. Submit only changes you have the right to share. Identify
+6. Contributions. Submit only changes you have the right to share. Identify
    third-party contributions and their original license. This license does
    not transfer ownership of contributions or automatically authorize their
    relicensing for a future full release.
 
-6. Beta status. This interim license covers this beta version. A later full
-   release may be offered under separately stated terms; no future release
-   date or automatic license change is promised here.
+7. Open-source full release. The copyright holder will release the engine's
+   original code as open source when the engine fully releases. The specific
+   open-source license will be identified with that full release. Until then,
+   this beta and its forks remain governed by these interim terms. A future
+   open-source release does not automatically relicense this beta or grant
+   permission to publicly release beta-derived work; such work requires the
+   explicit written permission described in section 4 unless separately
+   covered by the later open-source license. Third-party material retains
+   its own license throughout.
 
-7. No game rights. No rights to Nintendo, Game Freak, The Pokemon Company,
+8. No game rights. No rights to Nintendo, Game Freak, The Pokemon Company,
    game ROMs, game artwork or other third-party assets are granted. Obtain
    required game inputs separately. No ROMs or personal saves are included.
 
-8. Disclaimer. THE COVERED MATERIAL IS PROVIDED "AS IS", WITHOUT WARRANTY OF
+9. Disclaimer. THE COVERED MATERIAL IS PROVIDED "AS IS", WITHOUT WARRANTY OF
    ANY KIND, EXPRESS OR IMPLIED, INCLUDING MERCHANTABILITY, FITNESS FOR A
    PARTICULAR PURPOSE AND NONINFRINGEMENT. TO THE MAXIMUM EXTENT PERMITTED
    BY LAW, THE COPYRIGHT HOLDER IS NOT LIABLE FOR CLAIMS, DAMAGES OR OTHER

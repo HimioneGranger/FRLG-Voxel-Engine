@@ -77,8 +77,10 @@ Original project material is offered under the interim
 [private-use beta license](LICENSE.txt): private noncommercial evaluation and
 local development, with changes submitted back for review. This is a
 source-available beta, not an unrestricted open-source release. Public GitHub
-viewing/forking remains subject to GitHub's terms. A future full release may
-have separately stated terms.
+viewing/forking remains subject to GitHub's terms. The engine's original code will become open source at its full release, under
+a license announced then. Beta forks remain for private use; publicly releasing
+beta-derived work requires HimioneGranger's prior explicit written permission,
+subject to GitHub-required viewing/forking and third-party license rights.
 
 Third-party material retains its original terms; see
 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md). No rights to Pokémon game
