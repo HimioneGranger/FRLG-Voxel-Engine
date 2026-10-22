@@ -29,3 +29,6 @@ build/
 *.log
 __pycache__/
 *.pyc
+
+# Private backups from the optional consumer lookup migration
+FRLG_VOXEL/consumer-update-backups/

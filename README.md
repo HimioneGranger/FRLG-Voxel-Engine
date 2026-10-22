@@ -55,21 +55,32 @@ this is not a claim of compatibility with every upstream version.
 
 | Mod / integration | Support included in this beta |
 | --- | --- |
-| VRITK / VR Interactions Backpack Lab | Adapters included; older releases using the separate bridge ID need an updated lookup |
+| VRITK 0.3.1-gen-compat.1 | Engine discovery, hands/backpack and interaction adapters; apply the included lookup update |
 | Wilds of Hoenn 1.5.0 / 1.7.1 | FireRed Pokémon/follower drawing starts automatically inside the engine |
 | Untamed Advanced / FRLG overworld mons | Provider adapter included; still requires its external Overworld Mons provider |
 | TWS / private weather build | Weather and rendering hooks |
-| FRLG Catch | Capture hooks included; legacy releases with a bridge dependency need a manifest/lookup update |
-| Kanto Gear | Belt/party adapters included; older bridge lookups need updating |
+| FRLG Catch 0.4.0-lab8.2 | Capture adapters and engine discovery; apply the included lookup update |
+| Kanto Gear 3.4.0 | Belt/party/naming adapters and engine discovery; apply the included lookup update |
 | Portal MR | Optional mixed-reality rendering link |
 | FRLG RTC / Emerald Clock bridge | Clock integration hooks |
 
-Older mods that require the old `VRITK_FRLG_HOST` identity are not automatically
-compatible with this single-folder beta. Their adapters remain inside the
-engine at `FRLG_VOXEL.exports.compatibility`; those consumers need to use that
-interface. The old host's bridge-specific HD-sprites guard is also unverified
-without that separate mod entry. Do not treat included adapters as full
-acceptance of those legacy combinations.
+### One-time update for VRITK, Catch and Gear
+
+Install this engine first and close the game. From the game folder, run:
+
+```sh
+python mods/FRLG_VOXEL/tools/update_consumer_lookups.py --mods-dir mods --apply
+```
+
+Requires Python 3. Omit `--apply` to check without changing files. The updater
+handles the three versions listed above, skips mods you do not have, verifies
+all files before writing and saves original backups inside `FRLG_VOXEL`.
+Unknown or locally edited versions are left untouched. The mods themselves
+remain separate; all game-specific compatibility stays inside the engine.
+See [consumer update details](docs/CONSUMER_UPDATES.md).
+
+The old host's bridge-specific HD-sprites guard remains unverified in this
+layout. These lookup tests do not establish full gameplay or headset acceptance.
 
 The renderer/profile loader works without these optional mods. Adapter
 discovery and lifecycle checks pass; full gameplay with every mod combination

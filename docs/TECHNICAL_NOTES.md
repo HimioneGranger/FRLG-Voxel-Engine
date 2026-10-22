@@ -17,15 +17,19 @@ The host baseline remains Gen 3 Lab 62 (mod API 2/LÖVE, plus OpenXR for Quest).
 Original game inputs and optional gameplay mods remain separate.
 
 Compatibility exports are isolated at `FRLG_VOXEL.exports.compatibility`.
-The engine resolves its historical bridge lookup internally; it does not
-invent a loaded mod or modify the host's private loader registry. An already
-installed beta-1 discovery shim can attach to the same adapter exports without
-duplicating hooks, but the beta-2 archive contains no shim folder. Remove the
-old separate folder during upgrade. Unchanged external VRITK/Catch/Gear builds
-that look up or hard-depend on that old ID need their consumer contract updated;
-they are not verified as supported by this single-folder release. The old host's
-HD guard also hardcodes the legacy folder. These limitations are not hidden by
-a fabricated alias. Wilds 1.5.0 and 1.7.1 use the engine-owned provider directly.
+External consumers now use the protected `getCompatibilityHost()` export,
+which returns a standard host handle only when the engine compatibility API is
+ready for FireRed/LeafGreen. The engine's layout/readiness checks stay inside
+FRLG_VOXEL. It does not invent a host mod entry or modify the loader registry.
+
+The included offline updater changes seven source/manifest files across the
+pinned VRITK, Catch and Gear versions. It removes Catch's hard dependency on
+the absent bridge and adds ordering edges where needed. Actual host-loader
+tests cover reverse player ordering and legacy fallback. All adapter behavior
+remains inside FRLG_VOXEL; external changes are lookup/dependency plumbing.
+It never runs automatically in-game. See [consumer updates](CONSUMER_UPDATES.md)
+for validation, backups and scope. HD sprites' old host guard is still a
+separate unresolved compatibility area, not claimed covered by these changes.
 
 Game simulation, ROM import and platform device services remain the host's
 responsibility.

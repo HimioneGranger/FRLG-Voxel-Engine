@@ -1,10 +1,15 @@
 {
-  "version": "0.1.0-beta.2",
+  "version": "0.1.0-beta.3",
   "files": [
     {
       "path": ".gitignore",
-      "bytes": 317,
-      "sha256": "fb6a76fbd4d463f5a7fac146c272d28561bea03393b1e5a5c997e720ae804406"
+      "bytes": 416,
+      "sha256": "f25f26e18c787b0282ca31a6fdd4ed374a86b1333005136fd03830da310d82b1"
+    },
+    {
+      "path": "docs/CONSUMER_UPDATES.md",
+      "bytes": 2737,
+      "sha256": "f09e99d21d37d714e1cfae4c96b26a011d674172b32e9b0131f7067786dbfe11"
     },
     {
       "path": "docs/screenshots/buildings.png",
@@ -23,8 +28,8 @@
     },
     {
       "path": "docs/TECHNICAL_NOTES.md",
-      "bytes": 4450,
-      "sha256": "623d35ea529830d408f72b20719325dd3624f551fb6662d62d85dccef962052b"
+      "bytes": 4666,
+      "sha256": "225f465565d7c43dd94b6a44a7def6675c6b98e33132f6dbe861ba14d172517d"
     },
     {
       "path": "FRLG_VOXEL/lib/battle/BattleCards.lua",
@@ -305,6 +310,11 @@
       "path": "FRLG_VOXEL/lib/cave/QueryCodec.lua",
       "bytes": 3363,
       "sha256": "4b521c94a66964763032c8dda621424c665039770cf9e57e1c714134fb57cb12"
+    },
+    {
+      "path": "FRLG_VOXEL/lib/compat/consumer-updates/recipe.json",
+      "bytes": 9915,
+      "sha256": "7d6bbfe70008e6476ab3c55ecc236515086494952cf60204f886f808b4701bd4"
     },
     {
       "path": "FRLG_VOXEL/lib/compat/legacyBridge/assets/vr/hands/standard_openxr/LICENSE.godot-demo-projects.md",
@@ -648,8 +658,8 @@
     },
     {
       "path": "FRLG_VOXEL/lib/compat/LegacyBridge.lua",
-      "bytes": 2246,
-      "sha256": "fe4d61c39dfbb4b7aec802f1b961ed41edb1adfa49bcbebfc70c5e6868fb4a20"
+      "bytes": 2864,
+      "sha256": "17f450ee982e8c72bc64e486f30dbb24b722542130a3518492bf0f862b2e54a0"
     },
     {
       "path": "FRLG_VOXEL/lib/data/Actors.lua",
@@ -1329,7 +1339,12 @@
     {
       "path": "FRLG_VOXEL/manifest.json",
       "bytes": 639,
-      "sha256": "3ff9433202bf9214d53da89c8500d3b5262e0b3fca3e7224452cf19672c10f68"
+      "sha256": "7f51478d0c919adc16e6c840949e7d8dc27311089a080c97dfe3902ea019d06b"
+    },
+    {
+      "path": "FRLG_VOXEL/tools/update_consumer_lookups.py",
+      "bytes": 6879,
+      "sha256": "9ad8aa822cc4ae8838fadd73d58615e64e5a2664a6bcb66aa029b465cc508a58"
     },
     {
       "path": "LICENSE.txt",
@@ -1338,8 +1353,8 @@
     },
     {
       "path": "README.md",
-      "bytes": 4524,
-      "sha256": "b0b8ad3763c5d315a12c7b84b09f69df4572eeb164e12ea973bd8571b1873a82"
+      "bytes": 4911,
+      "sha256": "9bc4066d27fddcd63cf1ac83d1a176c026b863e2fc227f74c8bcc3461207bf6f"
     },
     {
       "path": "tests/test_local_loader.lua",

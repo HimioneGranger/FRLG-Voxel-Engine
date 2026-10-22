@@ -10,6 +10,17 @@ function B.expose(V)
  exports.compatibility=bridge
  local state={exports=bridge}
  V._compatibility=state
+ local handle={id=owner.id,version=owner.version,exports=bridge}
+ -- Consumers ask for a standard host handle; game/layout rules stay here.
+ exports.getCompatibilityHost=function()
+  if not state.started or state.failed or bridge.active~=true or bridge.api~=1 then return nil end
+  local ok,GV=pcall(require,'src.core.GameVersion')
+  if not(ok and type(GV)=='table'and type(GV.get)=='function'and type(GV.layout)=='function')then return nil end
+  local good,id=pcall(GV.get);if not good then return nil end
+  local valid,layout=pcall(GV.layout,id)
+  if valid and layout=='frlg'then return handle end
+  return nil
+ end
  local find=assert(owner.find,'mod discovery required')
  -- Resolve the historical name inside this engine only. Never alter another
  -- mod's lookup or invent a loaded entry in the host's private registry.
