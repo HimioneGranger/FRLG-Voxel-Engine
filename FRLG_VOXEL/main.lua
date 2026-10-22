@@ -68,7 +68,7 @@ if generation ~= 3 then
   return
 end
 
--- Expose lazy, engine-owned adapters. The bundled legacy shim owns its lifecycle.
+-- Keep compatibility exports separate from the renderer; start below after initialization.
 V.require('compat/LegacyBridge').expose(V)
 
 -- ------------------------------------------------------------ options
@@ -2081,3 +2081,10 @@ mod.exports.setCamera = function(mode)
 end
 
 log(("loaded %s (%s)"):format(tostring(mod.version), S.android and "Quest/Android" or "desktop"))
+
+-- Compatibility belongs to this mod and starts even when no legacy shim exists.
+-- Native host services, hooks and events retain FRLG_VOXEL ownership.
+do
+ local ok,why=pcall(function()return V.require('compat/LegacyBridge').start(V)end)
+ if not ok then logOnce('compat-start','compatibility startup failed: '..tostring(why))end
+end

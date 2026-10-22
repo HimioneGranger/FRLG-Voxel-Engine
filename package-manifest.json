@@ -1,5 +1,5 @@
 {
-  "version": "0.1.0-beta.1",
+  "version": "0.1.0-beta.2",
   "files": [
     {
       "path": ".gitignore",
@@ -23,8 +23,8 @@
     },
     {
       "path": "docs/TECHNICAL_NOTES.md",
-      "bytes": 4911,
-      "sha256": "d1669bafa9a1f6bb4e5b259720a5ed80de21d2891b6796f4f921e08593176585"
+      "bytes": 4450,
+      "sha256": "623d35ea529830d408f72b20719325dd3624f551fb6662d62d85dccef962052b"
     },
     {
       "path": "FRLG_VOXEL/lib/battle/BattleCards.lua",
@@ -643,13 +643,13 @@
     },
     {
       "path": "FRLG_VOXEL/lib/compat/legacyBridge/main.lua",
-      "bytes": 40105,
-      "sha256": "e33c42deb344b2c48d671c1a2adf6b45d22dcecb963baae8bd493fce476ed862"
+      "bytes": 40368,
+      "sha256": "39f2cb0fd3f8cc588246c92dd3c43c1ede78ebfb28900fe9e93c0b39d4c8e0b3"
     },
     {
       "path": "FRLG_VOXEL/lib/compat/LegacyBridge.lua",
-      "bytes": 1909,
-      "sha256": "570b76f648fe70a2b9681c73a5f11b7cf2d2bb15ca591be573c889a96c77f0c3"
+      "bytes": 2246,
+      "sha256": "fe4d61c39dfbb4b7aec802f1b961ed41edb1adfa49bcbebfc70c5e6868fb4a20"
     },
     {
       "path": "FRLG_VOXEL/lib/data/Actors.lua",
@@ -1323,13 +1323,13 @@
     },
     {
       "path": "FRLG_VOXEL/main.lua",
-      "bytes": 111353,
-      "sha256": "c9657e7786a242f18016857723b5dd3062b537d768294d2f8ad9d13e9914b40d"
+      "bytes": 111703,
+      "sha256": "e15a3a2b0b16ac7575bbf24f8bb4a0409e1ae4295b0a268f9ab4c410193f3850"
     },
     {
       "path": "FRLG_VOXEL/manifest.json",
-      "bytes": 645,
-      "sha256": "58a8b652931a39913f7dd8d64ee37e427358567b8c195888c7e81636497f1c5e"
+      "bytes": 639,
+      "sha256": "3ff9433202bf9214d53da89c8500d3b5262e0b3fca3e7224452cf19672c10f68"
     },
     {
       "path": "LICENSE.txt",
@@ -1338,8 +1338,8 @@
     },
     {
       "path": "README.md",
-      "bytes": 3875,
-      "sha256": "84b008aeb37f39c66e1f8d6ebafb84330e394964039250ca8e7e94c26ae542d4"
+      "bytes": 4524,
+      "sha256": "b0b8ad3763c5d315a12c7b84b09f69df4572eeb164e12ea973bd8571b1873a82"
     },
     {
       "path": "tests/test_local_loader.lua",
@@ -1355,21 +1355,6 @@
       "path": "tools/verify_package.py",
       "bytes": 1851,
       "sha256": "8930d5baa635d3d43086355e9e3df73aa012355e1a86ea9b2197e7cf8d4ea04a"
-    },
-    {
-      "path": "VRITK_FRLG_HOST/lib/compat/HdSpritesCompat.lua",
-      "bytes": 386,
-      "sha256": "ca3eae98f7ec81b124d60ec7b431092743008e9861464e463b0e4e61cf63a89d"
-    },
-    {
-      "path": "VRITK_FRLG_HOST/main.lua",
-      "bytes": 327,
-      "sha256": "19ea5985b0b72ed9b070f22b22aa6a23cba7057cd38698aaa42352dbb0cf567f"
-    },
-    {
-      "path": "VRITK_FRLG_HOST/manifest.json",
-      "bytes": 749,
-      "sha256": "8fdaf1d5fa5cd0cc21cc89fefddf0c76c45af29088200f274095fe04b8dbad4c"
     }
   ]
 }

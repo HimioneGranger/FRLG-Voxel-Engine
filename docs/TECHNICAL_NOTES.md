@@ -10,29 +10,22 @@ No ROM, extracted game atlas, save, signing key or account credential is supplie
 
 ## Installation
 
-Download the renderer mod ZIP from the beta release. Extract its `FRLG_VOXEL`
-directory and the included `VRITK_FRLG_HOST` shim directory into the compatible
-host's mods directory. Replace the prior version
-of this mod rather than enabling two copies. Keep your saves backed up.
+Extract `FRLG_VOXEL` into the compatible host's mods directory. All adapters
+initialize under this engine's hooks, events and options. No separately enabled
+compatibility shim is needed for the renderer or Wilds Pokémon drawing.
+The host baseline remains Gen 3 Lab 62 (mod API 2/LÖVE, plus OpenXR for Quest).
+Original game inputs and optional gameplay mods remain separate.
 
-The host must provide mod API 2, Gen 3 runtime/map/tileset/collision interfaces
-and LÖVE graphics. Quest stereo additionally requires the host's OpenXR device
-interface. This mod does not add Gen 3 support to a host which lacks it.
-The integration baseline is the existing Gen 3 Lab 62 host
-(`0.3.33-gen3.lab.62-runtime-fixes-wilds171`). Compatibility with an arbitrary
-upstream release is not assumed. Use a separately supplied compatible host.
-Desktop rendering and Quest rendering share the engine; headset acceptance is
-tracked separately from source, geometry and desktop checks.
-
-Wilds, VRITK, TWS/weather, Catch, Backpack and Portal are optional integrations.
-The mod-local mesher/profile loader is verified with those mods absent.
-Their integrations activate only when the relevant provider is present.
-It owns its rendering/compatibility code inside this mod; those other mods are
-not included in this download. The ZIP also includes a tiny `VRITK_FRLG_HOST`
-discovery shim because existing VRITK versions look up that fixed identifier.
-The shim forwards to compatibility implementation inside `FRLG_VOXEL`; it is
-not a second renderer. Replace an older copy of that bridge when installing
-this bundle. Do not keep two mods with the same identifier.
+Compatibility exports are isolated at `FRLG_VOXEL.exports.compatibility`.
+The engine resolves its historical bridge lookup internally; it does not
+invent a loaded mod or modify the host's private loader registry. An already
+installed beta-1 discovery shim can attach to the same adapter exports without
+duplicating hooks, but the beta-2 archive contains no shim folder. Remove the
+old separate folder during upgrade. Unchanged external VRITK/Catch/Gear builds
+that look up or hard-depend on that old ID need their consumer contract updated;
+they are not verified as supported by this single-folder release. The old host's
+HD guard also hardcodes the legacy folder. These limitations are not hidden by
+a fabricated alias. Wilds 1.5.0 and 1.7.1 use the engine-owned provider directly.
 
 Game simulation, ROM import and platform device services remain the host's
 responsibility.
@@ -74,7 +67,7 @@ and full gameplay acceptance remain unverified for this beta.
 ## License
 
 Original project material is offered under the interim
-[private-use beta license](LICENSE.txt): private noncommercial evaluation and
+[private-use beta license](../LICENSE.txt): private noncommercial evaluation and
 local development, with changes submitted back for review. This is a
 source-available beta, not an unrestricted open-source release. Public GitHub
 viewing/forking remains subject to GitHub's terms. The engine's original code will become open source at its full release, under
@@ -83,5 +76,5 @@ beta-derived work requires HimioneGranger's prior explicit written permission,
 subject to GitHub-required viewing/forking and third-party license rights.
 
 Third-party material retains its original terms; see
-[THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md). No rights to Pokémon game
+[THIRD_PARTY_NOTICES.md](../THIRD_PARTY_NOTICES.md). No rights to Pokémon game
 content are granted by this project.

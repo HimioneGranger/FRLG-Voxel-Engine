@@ -454,6 +454,11 @@ end)
 
 mod.hooks:wrap("core.quit_to_launcher", function(nextFn)
   S.voxelActive = false
+  -- Engine-owned provider registration must retire with this engine instance.
+  local router=mod.exports.overworldProvider
+  local adapter=router and router.active
+  if adapter and type(adapter.deactivate)=='function' then pcall(adapter.deactivate,adapter) end
+
   -- Lab 8: take the Gen3 overrides back out of VRITK's module tables before
   -- another game can reach them in this process.
   if Mods.UntamedGateCompat then pcall(Mods.UntamedGateCompat.uninstall) end

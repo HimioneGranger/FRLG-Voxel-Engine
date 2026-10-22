@@ -36,11 +36,12 @@ B2F still has a polish note. Images do not establish headset acceptance.
 
 1. Use a compatible Gen 3 host and your own game data.
 2. Download the ZIP from **Releases**.
-3. Extract both `FRLG_VOXEL` and `VRITK_FRLG_HOST` into the host's mods folder,
-   replacing older copies. Keep only one copy of each mod ID.
+3. Extract **only `FRLG_VOXEL`** into the host's mods folder, replacing the old
+   engine folder. No separate compatibility mod is required.
 
-`VRITK_FRLG_HOST` is a small compatibility lookup shim. Its implementation is
-inside the engine; it does not include VRITK itself.
+All engine compatibility code starts automatically from `FRLG_VOXEL`. When
+upgrading from beta 1, remove its separate `VRITK_FRLG_HOST` folder. Keep your
+save files; this update does not require a new game.
 
 The tested integration baseline is Gen 3 Lab 62
 (`0.3.33-gen3.lab.62-runtime-fixes-wilds171`), with mod API 2 and LÖVE graphics.
@@ -54,14 +55,21 @@ this is not a claim of compatibility with every upstream version.
 
 | Mod / integration | Support included in this beta |
 | --- | --- |
-| VRITK / VR Interactions Backpack Lab | Gen 3 host bridge, hands/backpack and interaction hooks |
-| Wilds of Hoenn / Wilds followers | FireRed overworld provider, follower and rendering adapters |
-| Untamed Advanced / FRLG overworld mons | Alternative overworld-provider adapter and selection |
+| VRITK / VR Interactions Backpack Lab | Adapters included; older releases using the separate bridge ID need an updated lookup |
+| Wilds of Hoenn 1.5.0 / 1.7.1 | FireRed Pokémon/follower drawing starts automatically inside the engine |
+| Untamed Advanced / FRLG overworld mons | Provider adapter included; still requires its external Overworld Mons provider |
 | TWS / private weather build | Weather and rendering hooks |
-| FRLG Catch | Capture-world and rendering hooks |
-| Kanto Gear | Gen 3 belt, gear placement and party hooks |
+| FRLG Catch | Capture hooks included; legacy releases with a bridge dependency need a manifest/lookup update |
+| Kanto Gear | Belt/party adapters included; older bridge lookups need updating |
 | Portal MR | Optional mixed-reality rendering link |
 | FRLG RTC / Emerald Clock bridge | Clock integration hooks |
+
+Older mods that require the old `VRITK_FRLG_HOST` identity are not automatically
+compatible with this single-folder beta. Their adapters remain inside the
+engine at `FRLG_VOXEL.exports.compatibility`; those consumers need to use that
+interface. The old host's bridge-specific HD-sprites guard is also unverified
+without that separate mod entry. Do not treat included adapters as full
+acceptance of those legacy combinations.
 
 The renderer/profile loader works without these optional mods. Adapter
 discovery and lifecycle checks pass; full gameplay with every mod combination
