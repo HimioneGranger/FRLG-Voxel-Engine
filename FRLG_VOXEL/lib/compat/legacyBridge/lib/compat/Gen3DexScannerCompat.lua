@@ -14,7 +14,7 @@
 --                                 voice keeps playing after the squeeze is released
 --     QuestWearableInteraction.watchScanEdgeRay  (new, Lab 57) the wrist scan
 --                                 leaves the TOP EDGE of the watch face
---     QuestPokedexScan._startNarration  an unknown species ends quietly
+--     QuestPokedexScan._startNarration  narration also plays for uncaught species
 --   installBridge(component, interaction, bridge) -- Gen3TabletCompat.install
 --     bridge:openPokedex  numeric species id lookup (kanto_gear's Gen3 dex is
 --                         keyed by the engine species id, gen3.lua
@@ -84,7 +84,7 @@ end
 local function stillUnknown(runtime, species)
   local ok, data = pcall(runtime.pokedexData)
   local row = ok and type(data) == "table" and type(data.bySpecies) == "table" and data.bySpecies[species]
-  return not (row and (row.seen == true or row.caught == true))
+  return not (row and row.caught == true)
 end
 
 local function unwrapModel()
@@ -100,17 +100,11 @@ local function wrapModel(runtime)
   if type(raw) ~= "function" then return false end
   local fn
   fn = function(...)
-    local r = state.redact
-    local dex = runtime.pokedex
-    if r and r.runtime == runtime and type(dex) == "table" then
-      if dex.selected ~= r.species or not stillUnknown(runtime, r.species) then
-        state.redact = nil
-      elseif dex.view ~= "index" then
-        -- an unknown species has no stats/moves/habitat pages
-        if dex.view ~= "profile" then dex.view = "profile" end
-        return M.redactModel(raw(...))
-      end
+    local dex=runtime.pokedex
+    if type(dex)=='table' and dex.view~='index' and stillUnknown(runtime,dex.selected) then
+      return M.redactModel(raw(...))
     end
+
     return raw(...)
   end
   rawset(runtime, "pokedexModel", fn)
@@ -136,9 +130,9 @@ function M.openPokedex(bridge, entry, original)
   local ok, data = pcall(runtime.pokedexData)
   if not ok or type(data) ~= "table" or type(data.bySpecies) ~= "table" then return false end
   local row = data.bySpecies[id]
-  local known = row ~= nil and (row.seen == true or row.caught == true)
+  local known = row ~= nil and row.caught == true
   if scanned and not known then
-    -- the scan result itself (cry still plays; no Pokedex narration)
+    -- Hide visual identification while keeping the authoritative dex number for narration.
     entry.gen3Unknown, entry.name = true, M.UNKNOWN_NAME
   end
   if not row then
@@ -149,6 +143,7 @@ function M.openPokedex(bridge, entry, original)
   if not write(b.page, "POKEDEX") then return false end
   runtime.pokedex.selected, runtime.pokedex.view = id, "profile"
   runtime.pokedex.habitatPage, runtime.pokedex.movePage = 1, 1
+  wrapModel(runtime) -- retain caught-only redaction when navigating tablet pages
   if scanned then
     state.redact = (not known) and wrapModel(runtime) and { runtime = runtime, species = id } or nil
   end
@@ -498,11 +493,7 @@ function M.installCamera(vkV)
     end
   end) and swap(rec, Scan, "_startNarration", function(raw)
     return function(self)
-      local entry = self.state and self.state.entry
-      if type(entry) == "table" and entry.gen3Unknown then
-        self.state.phase, self.state.message, self.state.voice = "complete", "UNKNOWN POKEMON", nil
-        return
-      end
+      -- Audio identification is independent of the tablet's caught-only page.
       return raw(self)
     end
   end)

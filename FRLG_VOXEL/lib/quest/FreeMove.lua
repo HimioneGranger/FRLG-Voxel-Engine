@@ -499,6 +499,13 @@ function FreeMove.free() return S.pos ~= nil end
 -- Headset intent, once per rendered frame from InputMap:apply.
 -- (x, z) world unit vector (x east, z south), m = 0..1 (0 = stick at rest);
 -- o = { look = world look yaw or nil, faceLook = bool, panel = bool }
+-- Independent source: headset InputMap cannot overwrite an active keyboard intent.
+function FreeMove.setMouseIntent(x, z, m, active)
+  if not active then S.mouseIntent=nil; return end
+  local it=S.mouseIntent or {}
+  it.x,it.z,it.m,it.tick=x,z,m,S.tick
+  S.mouseIntent=it
+end
 function FreeMove.setIntent(x, z, m, o)
   local it = S.intent
   it.x, it.z, it.m = tonumber(x) or 0, tonumber(z) or 0, tonumber(m) or 0
@@ -555,6 +562,8 @@ function FreeMove._reset() S = freshState() end
 -- ------------------------------------------------------------ the tick
 -- Intent for this tick: (x, z) unit vector, magnitude 0..1, source.
 local function intentOf(input)
+  local mi = S.mouseIntent
+  if mi and mi.m > 0 and S.tick - mi.tick <= FreeMove.INTENT_STALE then return mi.x, mi.z, mi.m end
   if S.android then
     local it = S.intent
     return it.x, it.z, it.m
@@ -576,7 +585,7 @@ local function gate(P, input)
     local ok, live = pcall(S.live)
     if ok and not live then return "3D view off" end
   end
-  if S.android then
+  if S.android and not (S.mouseIntent and S.tick - S.mouseIntent.tick <= FreeMove.INTENT_STALE) then
     local it = S.intent
     if S.tick - it.tick > FreeMove.INTENT_STALE then return "no headset intent" end
     if it.panel then return "panel" end

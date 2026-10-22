@@ -422,7 +422,9 @@ local function bind()
     log("vrHost.layers.register failed: " .. tostring(err))
   end
 end
+local installWildsHostCompat
 mod.events:on("mods.loaded", function()
+  if installWildsHostCompat then installWildsHostCompat() end
   local ok, err = pcall(bind)
   if not ok then log("bind() threw: " .. tostring(err)) end
   -- Track C: the overworld provider router's first detection rides this one
@@ -605,7 +607,8 @@ do
     local okM, m = pcall(V.require, name)
     return okM and m or nil
   end
-  local okH, errH = pcall(function()
+  installWildsHostCompat = function()
+   local okH, errH = pcall(function()
     local Host = V.require("compat/WildsHostCompat")
     local ok, why = Host.install({ find = mod.find, events = mod.events, log = logf, require = require,
       voxelActive = function() return S.voxelActive == true end,
@@ -614,7 +617,9 @@ do
     logf("Wilds host compat: %s %s", tostring(ok), tostring(why or ""))
     Mods.WildsHostCompat = Host
   end)
-  if not okH then log("Wilds host compat unavailable: " .. tostring(errH)) end
+   if not okH then log("Wilds host compat unavailable: " .. tostring(errH)) end
+  end
+  installWildsHostCompat()
   local okU, errU = pcall(function()
     local Gate = V.require("compat/UntamedGateCompat")
     local ok, why = Gate.install(mod.find, logf)
@@ -686,6 +691,7 @@ do
     local okW, wilds = pcall(function()
       return V.require("compat/WildsFireRedAdapter").new({
         find = mod.find,
+        ambient = V.require("compat/WildsAmbientCompat"),
         layout = function() return layout end,
         G3 = Mods.Game3Capture or V.require("Game3Capture"),
         capture = V.require("compat/WildsCapture"),

@@ -26,7 +26,7 @@
 local M = {}
 
 M.VERSION = "1.5.0" -- legacy public pin
-M.SUPPORTED_VERSIONS = { ["1.5.0"] = true, ["1.7.1"] = true }
+M.SUPPORTED_VERSIONS = { ["1.5.0"] = true, ["1.7.1"] = true, ["1.10.1"] = true }
 M.MAX_TOTAL_VISIBLE = 8 -- was Config.MAX_TOTAL_VISIBLE
 M.ATLAS_MAX_SHARDS = 2 -- decoded atlas shards kept at once (was Config.ATLAS_MAX_SHARDS)
 M.ATLAS_MAX_IMAGES = 48 -- sliced sheets kept at once (was Config.ATLAS_MAX_IMAGES)
@@ -108,7 +108,7 @@ function M.install(ctx)
       { pu, "draw" }, { comp, "resolve" } }) do
     if type(need[1][need[2]]) ~= "function" then return false, "wilds_of_hoenn method missing: " .. need[2] end
   end
-  if version == "1.7.1" then
+  if version ~= "1.5.0" then
     if type(sm._place) ~= "function" then return false, "wilds_of_hoenn _place missing" end
     if type(sm.reflections) ~= "function" or type(fa.reflections) ~= "function" then
       return false, "wilds_of_hoenn 1.7.1 reflections missing"
@@ -125,10 +125,17 @@ function M.install(ctx)
       return false, "wilds_of_hoenn 1.7.1 generic compatibility hooks missing"
     end
   end
+  if version == "1.10.1" then
+    if type(sm.source) ~= "table" or type(sm.source.randomCell) ~= "function"
+        or type(sm.source.eligibleCount) ~= "function" or type(sm._reachStale) ~= "function"
+        or type(ex.spriteAtlas.sheetData) ~= "function" then
+      return false, "wilds_of_hoenn 1.10.1 source/atlas contract missing"
+    end
+  end
   local mod = sm.mod
   if type(mod) ~= "table" or type(mod.read) ~= "function" then return false, "wilds_of_hoenn mod handle missing" end
   local constantsOk = verifyStock(mod, log)
-  if version == "1.7.1" and not constantsOk then return false, "wilds_of_hoenn 1.7.1 pose constants unsupported" end
+  if version ~= "1.5.0" and not constantsOk then return false, "wilds_of_hoenn 1.7.1 pose constants unsupported" end
 
   local rec = { wraps = {}, exports = {}, unsub = {}, parts = {}, ex = ex, version = version }
   local cache = {} -- engine modules, resolved once (a mod's require goes through the loader's gate and allocates)
@@ -198,9 +205,9 @@ function M.install(ctx)
     if Snapshot and renderer ~= nil then pcall(Snapshot.adopt, renderer) end
   end
   if Snapshot then
-    local okS, whyS = pcall(Snapshot.install, { log = log, version = version, hdField = ex.hdField, voxelActive = ctx.voxelActive })
+    local okS, whyS = pcall(Snapshot.install, { log = log, version = version, hdField = ex.hdField, spriteAtlas = ex.spriteAtlas, voxelActive = ctx.voxelActive })
     if not okS or whyS == false then
-      if version == "1.7.1" then return abortPart("snapshot", Snapshot, whyS) end
+      if version ~= "1.5.0" then return abortPart("snapshot", Snapshot, whyS) end
       log("wilds host compat: snapshot layer not installed: " .. tostring(whyS)); Snapshot = nil
     end
     if Snapshot then rec.parts.snapshot = Snapshot end
@@ -210,10 +217,33 @@ function M.install(ctx)
     adopt(fa.renderer)
   end
 
+  -- 1.10.1 owns ambient sky/water/local scenes and Sweet Scent callbacks.
+  -- Its main closes over these live instances, so gate those instances too.
+  if version == "1.10.1" then
+    for _, aux in ipairs({ ex.skyFlyers, ex.waterLife, ex.localScenes }) do
+      if type(aux) == "table" then
+        for _, method in ipairs({ "tick", "onMapEntered", "collectActors" }) do
+          wrap(rec, aux, method, function(orig)
+            return function(self, ...)
+              if S == rec and not st.enabled then return end
+              return orig(self, ...)
+            end
+          end)
+        end
+      end
+    end
+    wrap(rec, sm, "sweetScent", function(orig)
+      return function(self, ...)
+        if S == rec and not st.enabled then return nil end
+        return orig(self, ...)
+      end
+    end)
+  end
+
   -- ------------------------------------------------------------ the gate (flag consulted by persistent wrappers)
   wrap(rec, sm, "collectActors", function(orig)
-    return function(self, actors)
-      if S ~= rec or st.enabled then return orig(self, actors) end
+    return function(self, actors, ...)
+      if S ~= rec or st.enabled then return orig(self, actors, ...) end
     end
   end)
   for _, obj in ipairs({ sm, fa }) do
@@ -436,7 +466,7 @@ function M.install(ctx)
     self.decorator = fn
     return true
   end)
-  wrap(rec, sm, version == "1.7.1" and "_place" or "_spawnOne", function(orig)
+  wrap(rec, sm, version ~= "1.5.0" and "_place" or "_spawnOne", function(orig)
     return function(self, terrain, cell, ...)
       if S ~= rec then return orig(self, terrain, cell, ...) end
       if not st.enabled then return false end
@@ -497,9 +527,9 @@ function M.install(ctx)
 
   -- ------------------------------------------------------------ reachability (spawn_manager / encounter_source)
   if Reach then
-    local okR, whyR = pcall(Reach.install, { spawnManager = sm, log = log, stepsPerTick = 32, shoreRange = ctx.shoreRange })
+    local okR, whyR = pcall(Reach.install, { spawnManager = sm, log = log, stepsPerTick = 32, shoreRange = ctx.shoreRange, version = version, enginePatch = ex.enginePatch })
     if not okR or whyR == false then
-      if version == "1.7.1" then return abortPart("reach", Reach, whyR) end
+      if version ~= "1.5.0" then return abortPart("reach", Reach, whyR) end
       log("wilds host compat: reachability layer not installed: " .. tostring(okR and whyR or whyR))
     else
       rec.parts.reach = Reach
@@ -512,7 +542,7 @@ function M.install(ctx)
     local okS, whyS = pcall(Slots.install, { spawnManager = sm, log = log,
       cap = function() return st.cap end, slots = function() return st.waterSlots end, shoreRange = ctx.shoreRange })
     if not okS or whyS == false then
-      if version == "1.7.1" then return abortPart("slots", Slots, whyS) end
+      if version ~= "1.5.0" then return abortPart("slots", Slots, whyS) end
       log("wilds host compat: water slots not installed: " .. tostring(okS and whyS or whyS))
     else
       rec.parts.slots = Slots
@@ -673,21 +703,23 @@ function M.install(ctx)
   local atlasHook = type(ex.spriteAtlas) == "table" and type(ex.spriteAtlas.configure) == "function" and ex.spriteAtlas or nil
   local patchHook = type(ex.enginePatch) == "table" and type(ex.enginePatch.cacheModules) == "function" and ex.enginePatch or nil
   if atlasHook then
-    if version == "1.7.1" then rec.atlasHook = atlasHook end
+    if version ~= "1.5.0" then rec.atlasHook = atlasHook end
     local ok, err = pcall(atlasHook.configure, { maxShards = M.ATLAS_MAX_SHARDS, maxImages = M.ATLAS_MAX_IMAGES })
     if ok and err ~= false then rec.atlasHook = atlasHook
-    elseif version == "1.7.1" then return abortPart("atlas bounds", nil, err)
+    elseif version ~= "1.5.0" then return abortPart("atlas bounds", nil, err)
     else log("wilds host compat: spriteAtlas.configure failed: " .. tostring(err)) end
   else
     log("wilds host compat: this Wilds has no spriteAtlas.configure hook; the atlas stays unbounded")
   end
-  if patchHook then
-    if version == "1.7.1" then rec.patchHook = patchHook end
+  -- 1.10.1 enables its own module cache by default. Do not own or disable
+  -- that upstream setting on uninstall. Older versions still need this shim.
+  if patchHook and version ~= "1.10.1" then
+    if version ~= "1.5.0" then rec.patchHook = patchHook end
     local ok, err = pcall(patchHook.cacheModules, true)
     if ok and err ~= false then rec.patchHook = patchHook
-    elseif version == "1.7.1" then return abortPart("engine module cache", nil, err)
+    elseif version ~= "1.5.0" then return abortPart("engine module cache", nil, err)
     else log("wilds host compat: enginePatch.cacheModules failed: " .. tostring(err)) end
-  else
+  elseif version ~= "1.10.1" then
     log("wilds host compat: this Wilds has no enginePatch.cacheModules hook; engine lookups stay uncached")
   end
 

@@ -9,8 +9,7 @@
 -- geometry yet ("building") starts a hold. While holding, the stereo world is not drawn (the quad shows
 -- Loading) and the build pump gets the larger panel-frame budget. The hold ends when the root is built and no
 -- build job is due near the arrival point (Scene:buildsDue), after a full garbage collect behind the black
--- screen (so play starts on a clean heap) and one warm-up eye pass (rendered, not submitted), or after CAP_S
--- seconds of frame time at the latest. Leaving the
+-- screen (so play starts on a clean heap) and one warm-up eye pass (rendered, not submitted), when the work is ready; elapsed time never reveals an unfinished world. Leaving the
 -- field (menu, battle, failure, switch off) ends it at once and never collects. Walking over a map connection
 -- is a seamless re-root and never holds.
 --
@@ -18,10 +17,8 @@
 local M = {}
 M.__index = M
 
-M.CAP_S = 8.0          -- longest hold, in seconds of frame time
 M.DT_CLAMP = 0.25      -- one frame never counts for more than this (focus loss must not eat the cap)
 M.COOLDOWN_S = 0.5     -- after a hold ended, a "building" trigger waits this long (no flicker)
-M.WARM_MAX_FRAMES = 120 -- the warm-up eye pass is retried for at most this many frames
 
 -- Is the Loading canvas shown this frame? o = { enabled, failed, battle, menu, phase, holding, reason }
 function M.shouldShow(o)
@@ -65,16 +62,13 @@ function M:update(o)
   else
     self.elapsed = self.elapsed + dt
   end
-  local capped = self.elapsed >= M.CAP_S
-  local function finish(wasCapped)
-    if wasCapped then self.caps = self.caps + 1 end
-    self.lastElapsed, self.lastCapped = self.elapsed, wasCapped
-    self.endWhy = wasCapped and "cap" or "done" -- Lab 60: log reason
+  local function finish()
+    self.lastElapsed, self.lastCapped = self.elapsed, false
+    self.endWhy = "done"
     self.holding, self.elapsed, self.stage, self.cool = false, 0, nil, M.COOLDOWN_S
   end
   if self.stage == "build" then
     local done = o.rootReady == true and (o.due or 0) == 0 and o.hard ~= true
-    if capped and not done then finish(true); self.collects = self.collects + 1; return true, true, false end
     if done then
       self.stage = "warm"
       self.collects = self.collects + 1
@@ -84,8 +78,8 @@ function M:update(o)
   end
   -- warm stage
   self.warmFrames = self.warmFrames + 1
-  if o.warmed == true or capped or self.warmFrames > M.WARM_MAX_FRAMES then
-    finish(capped and o.warmed ~= true)
+  if o.warmed == true then
+    finish()
     return false, false, false
   end
   return true, false, true
@@ -107,12 +101,13 @@ function M.collect(pacer, gc)
 end
 
 -- ------------------------------------------------------------------ canvas
-local function paint(w, h, font)
+local function paint(w, h, font, stage)
   local g = love.graphics
   g.origin(); g.setShader(); g.setScissor(); g.setStencilTest(); g.setDepthMode(); g.setMeshCullMode("none")
-  g.setBlendMode("alpha"); g.setColor(0, 0, 0, 1); g.rectangle("fill", 0, 0, w, h)
+  g.setColorMask(true, true, true, true); g.setWireframe(false); g.setBlendMode("alpha"); g.setColor(0, 0, 0, 1); g.rectangle("fill", 0, 0, w, h)
   g.setFont(font); g.setColor(1, 1, 1, 1)
-  g.printf("Loading", 0, math.floor((h - font:getHeight()) / 2), w, "center")
+  g.printf(stage == "warm" and "Preparing the view" or "Loading nearby terrain", 0, math.floor(h * 0.34), w, "center")
+  g.printf(stage == "warm" and "Finishing terrain loading..." or "Preparing terrain for this area...", 0, math.floor(h * 0.56), w, "center")
 end
 
 -- The opaque canvas, cached per size. Raises on a graphics failure (the caller falls back to the flat panel).
@@ -121,15 +116,16 @@ function M:canvas(w, h)
   if self.image and (self.image:getWidth() ~= w or self.image:getHeight() ~= h) then
     self.image:release(); self.image = nil
   end
+  if self.image and self.paintedStage ~= self.stage then self.image:release(); self.image = nil end
   if not self.image then
     self.font = self.font or g.newFont(math.max(24, math.floor(h / 12)))
     local c = g.newCanvas(w, h, { dpiscale = 1 })
     c:setFilter("linear", "linear")
     g.push("all")
-    local ok, why = pcall(function() g.setCanvas(c); g.clear(0, 0, 0, 1); paint(w, h, self.font) end)
+    local ok, why = pcall(function() g.setCanvas(c); g.clear(0, 0, 0, 1); paint(w, h, self.font, self.stage) end)
     g.pop()
     if not ok then c:release(); error(why, 0) end
-    self.image = c
+    self.image, self.paintedStage = c, self.stage
   end
   return self.image
 end

@@ -11949,16 +11949,15 @@ local native={cells={
           keyedGrass = keyedGrass + 1
         end
 
-        -- r11 (USER REPORT): FLOWERS -- 2 keyed crossed cards (4 tris) on
-        -- hashed diagonals, FLOWER_H_MIN..MAX tall, the tile's upper part
-        -- (the blooms), like the tall-grass tufts; animated with the tile
+        -- Native flowers: one fixed sheet, including the no-flora fallback.
         if cell.flower and uv and IN.flora then
           IN.flora:flower(x, y, groundY, uv, cell.mid) -- W7: an upright clump of the tile's blooms
           flowerCells = flowerCells + 1
         elseif cell.flower and uv then
           local cuv = subRectV(uv, 0, C.FLOWER_V1)
-          for k = 0, 1 do
-            local yaw = math.rad((k == 0 and 45 or 135) + (hash01(x, y, 91 + k) - 0.5) * 2 * C.GRASS_YAW_JITTER)
+          do
+            local k = 0
+            local yaw = 0 -- fixed east-west sheet, matching the flora path
             -- (card width : height about the art's 16 : 12 -- not squashed)
             local w = lerp(C.FLOWER_W_MIN, C.FLOWER_W_MAX, hash01(x, y, 93 + k))
             local h = lerp(C.FLOWER_H_MIN, C.FLOWER_H_MAX, hash01(x, y, 95 + k))

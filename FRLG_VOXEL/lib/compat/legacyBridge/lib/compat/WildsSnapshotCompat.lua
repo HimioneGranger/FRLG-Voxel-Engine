@@ -528,6 +528,22 @@ local function pmdSnapshotInto(self, out, x, y, camX, camY, facing, walkPhase, s
   local pz = pushY + floor((act and act.dy or 0) + .5)
   local ay = entry.ay
 
+  -- 1.10.1 exposes its native feet-based placement. Keep the recorded
+  -- rest/duck/reveal/sink draw; do not reinterpret it using the old ground12.
+  -- No raw atlas alpha scan: its shards can be palette-number images.
+  if S.version == "1.10.1" and type(self.groundOf) == "function" then
+    local _, band
+    if self.swimming then _, band = self.cropHeight(entry) end
+    out.groundX, out.groundZ = groundX + px + 8, groundZ + pz + 8
+    out.groundY = groundZ + pz + (band and S.swimY or 15)
+    local factor = factorFor(pmdPathOf(self, entry))
+    local pivot = band or max(ay, tonumber(entry.foot) or ay)
+    scaleAbout(out, factor, entry.ax, pivot)
+    if band then attachFoam(self, out, factor, entry.ax, band)
+    else self._vsFoamImage = nil end
+    return out
+  end
+
   -- PMD_GROUND_Y is private to the mod: calibrate it from the recorded draw (never while recalled: the
   -- recall lift is private too). Costs one placement() per snapshot.
   local G = S.groundY
@@ -632,7 +648,7 @@ function M.install(ctx)
     return false, "no love.graphics.draw/setColor"
   end
   ctx = ctx or {}
-  S = { log = ctx.log, now = ctx.now, st = newStats(), groundY = ctx.groundY or 12,
+  S = { log = ctx.log, now = ctx.now, version = ctx.version, spriteAtlas = ctx.spriteAtlas, st = newStats(), groundY = ctx.groundY or 12,
     swimY = ctx.swimY or 18, hdField = ctx.hdField, voxelActive = ctx.voxelActive, memo = nil }
   known, patched, factorCache = {}, {}, {}
   atlases = setmetatable({}, { __mode = "k" })

@@ -13,7 +13,8 @@ No ROM, extracted game atlas, save, signing key or account credential is supplie
 Extract `FRLG_VOXEL` into the compatible host's mods directory. All adapters
 initialize under this engine's hooks, events and options. No separately enabled
 compatibility shim is needed for the renderer or Wilds Pokémon drawing.
-The host baseline remains Gen 3 Lab 62 (mod API 2/LÖVE, plus OpenXR for Quest).
+Beta 4's tested host is FireRed lab 3232 (engine 0.3.33, mod API 2/LÖVE,
+plus OpenXR for Quest). Earlier beta verification used Gen 3 Lab 62.
 Original game inputs and optional gameplay mods remain separate.
 
 Compatibility exports are isolated at `FRLG_VOXEL.exports.compatibility`.
@@ -33,6 +34,15 @@ separate unresolved compatibility area, not claimed covered by these changes.
 
 Game simulation, ROM import and platform device services remain the host's
 responsibility.
+
+The updated host must call the `game.boot_prepare`, `render.boot`,
+`input.mouse` and `input.focus` hooks for the new preparation and PC mouse
+features. Older hosts are not claimed to provide them. Mouse/keyboard mode is
+a PC option and is not enabled as a Quest control scheme.
+
+This engine package does not include the separate custom Oak/title mod,
+Wilds, VRITK, Catch, Gear, weather/clock mods or the host application. Their
+independent updates in a full lab APK are not part of this engine ZIP.
 
 ## Foliage development
 
@@ -67,6 +77,11 @@ Cold cave construction is cooperative, but can still produce frame hitches
 while decoding large meshes or allocating resources. Desktop measurements are
 development diagnostics, not a guaranteed VR frame budget. Quest performance
 and full gameplay acceptance remain unverified for this beta.
+
+World-cache invalidation still hashes all engine compatibility files and
+assets. An audio or control-only update can therefore trigger an unnecessary
+terrain rebuild. Beta 4 does not fix that rule. See [change notes](CHANGELOG.md)
+for the current runtime checks and other limitations.
 
 ## License
 

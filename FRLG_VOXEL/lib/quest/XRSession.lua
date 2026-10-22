@@ -307,6 +307,7 @@ end
 --   hooks.wantPanel         -> boolean: show the flat quad this frame
 -- Returns controls (plain table from XR.input) and views, or nil, status.
 function XRSession:frame(hooks)
+  self.panelSubmitted = false
   if not self.started then return nil, self.state end
   local vr = self:handle()
   if not vr then return nil, "no-handle" end
@@ -369,9 +370,11 @@ function XRSession:frame(hooks)
   if mrCard and mrCard.canvas and shouldRender and self:_copyQuad(mrCard.canvas, views, true) then quad = mrCard.pose end -- PORTAL_MR P1
   self.panelShown = quad ~= nil
   if hooks.mr and hooks.mr:submit(world == true) then -- PORTAL_MR P1: passthrough under the window this frame
-    pcall(vr.XR.endFrame, token, world == true, quad, true)
+    local ended, submitted = pcall(vr.XR.endFrame, token, world == true, quad, true)
+    self.panelSubmitted = ended and submitted ~= false and quad ~= nil
   else
-    pcall(vr.XR.endFrame, token, world == true, quad)
+    local ended, submitted = pcall(vr.XR.endFrame, token, world == true, quad)
+    self.panelSubmitted = ended and submitted ~= false and quad ~= nil
   end
   self.frames = self.frames + 1
   if world then self.worldFrames = self.worldFrames + 1 end

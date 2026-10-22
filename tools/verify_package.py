@@ -12,7 +12,7 @@ def main():
         p=root/item['path']
         assert p.is_file(),f"Missing {item['path']}"
         assert hashlib.sha256(p.read_bytes()).hexdigest()==item['sha256'],f"Changed {item['path']}"
-    forbidden={'.gba','.gb','.gbc','.rom','.sav','.srm','.apk','.love','.pem','.key','.pfx','.p12','.jks','.keystore'}
+    forbidden={'.gba','.nds','.gb','.gbc','.rom','.sav','.srm','.apk','.love','.pem','.key','.pfx','.p12','.jks','.keystore'}
     secret=re.compile(rb'(?:github_pat_[A-Za-z0-9_]{30,}|ghp_[A-Za-z0-9]{30,}|-----BEGIN (?:RSA |OPENSSH |EC )?PRIVATE KEY-----)')
     for p in root.rglob('*'):
         if not p.is_file() or '.git' in p.parts:continue

@@ -140,18 +140,22 @@ end
 -- Load the newer valid copy; keep it only when its token matches. -> true when the manifest is usable
 function P:_loadManifest()
   local cache = self.pc.cache
-  local best
+  local best, sawManifest
   for _, name in ipairs({ "a", "b" }) do
     local okR, s = pcall(cache.read, cache, Store.DIR .. "prep." .. name)
     if okR and type(s) == "string" then
+      sawManifest = true
       local okD, m = pcall(decodeManifest, s)
       if okD and m and (not best or m.seq > best.seq) then best = m; best.which = name end
     end
   end
   self.entries, self.seq, self.last = {}, 0, nil
+  -- Display-only mode: use existing saved-state evidence, never write a new cache marker.
+  self.operation = (sawManifest or (tonumber(self.pc.store.count) or 0) > 0) and "rebuild" or "precache"
   if best then
     self.seq, self.last = best.seq, best.which
     if best.token == self.token then
+      self.operation = "resume"
       self.entries, self.storageFails = best.entries, best.fails or 0
       return true
     end
@@ -183,7 +187,11 @@ end
 function P:_isDone(key)
   local e = self.entries[key]
   if not e then return false end
-  if e.status == ST_OK then return e.rk ~= nil and self.pc.store:has(rawToHex(e.rk)) ~= nil end
+  if e.status == ST_OK then
+    local present = e.rk ~= nil and self.pc.store:has(rawToHex(e.rk)) ~= nil
+    if not present then self.operation = "rebuild" end
+    return present
+  end
   if e.status == ST_SKIP then return true end
   return (e.attempts or 0) >= P.MAX_ATTEMPTS
 end
@@ -208,6 +216,7 @@ function P:rearm()
   self:_cleanup()
   self.phase, self.reason, self.skipReq, self.storageFailed = "idle", nil, false, false
   self.storageFails = 0
+  self.operation = nil
   self.clearFails = true -- the manifest still holds the old counter: forget it when it is loaded
   self.rearmed = self.rearmed + 1
 end
@@ -217,6 +226,7 @@ function P:skip() if self:isActive() then self.skipReq = true end end
 
 function P:progress(out)
   out.phase, out.done, out.total = self.phase, self.done, self.total
+  out.operation = self.operation
   out.frac = self.totalWeight > 0 and min(1, self.doneWeight / self.totalWeight) or 0
   if self.phase == "tiles" then -- the tileset pre-pass counts tilesets, not maps
     out.done, out.total = self.tileDone or 0, self.tileTotal or 0

@@ -806,7 +806,16 @@ local darkCenter = {0,0}
 local radialUniform = {0,0,0,0}
 -- Every pass resets the state; map-record centers subtract the same translation
 -- as rec.mvp, while world-space cards/sea use the original center.
+-- Battle-only world-coordinate seam: connected maps draw local vertices
+-- through a translated MVP. Other passes start at root origin, never inherit
+-- the previous map's cut origin. Ordinary field shaders receive nothing.
+local cutOrigin={0,0,0}
 function Shaders.dark(shader,env,rec)
+  local cut=Shaders.override
+  if cut and (shader==cut.OPAQUE or shader==cut.CUTOUT)then
+    cutOrigin[1],cutOrigin[2],cutOrigin[3]=rec and rec.ox or 0,0,rec and rec.oz or 0
+    Shaders.send(shader,"u_cutOrigin",cutOrigin)
+  end
   local r=env and env.radialFog
   radialUniform[1]=r and r[1]-(rec and rec.ox or 0) or 0
   radialUniform[2]=r and r[2]-(rec and rec.oz or 0) or 0

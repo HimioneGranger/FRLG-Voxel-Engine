@@ -71,10 +71,9 @@
 -- from 3-5 cells, ~30 % from 2 (Ctx:grass). 10 triangles a cell (+ the
 -- mesher's 2-triangle base); border rings 4.
 --
--- FLOWERS (round 2). Two keyed cards of the whole flower tile (blooms and
--- leaves; the ground keys away), each leaning FLOWER_LEAN -- one east-west
--- toward the north, one north-south toward the west -- so the clump reads
--- from above and from the side. 4 triangles.
+-- FLOWERS. One fixed keyed native-art sheet, gently leaning north.
+-- Original cropped artwork and animation UVs are preserved. 2 triangles.
+-- No crossed copy, camera facing, or extra texture.
 --
 -- UNDERSTORY. The forest-edge closure keeps the mesher's corner logic, but
 -- with flora it is a flat DARK fill (one texel of the art's darkest leaf
@@ -89,7 +88,7 @@
 -- 54 (r11 56),
 -- far (border ring, depth 3-4) 6; canopy 4 (+ 2 per skirt, at most 12);
 -- broadleaf near 52 (dome 30 + hem 18 + trunk 4), inner 30, far 18. Grass
--- cell 10 (+ the mesher's 2-triangle base; border ring 4), flower cell 4.
+-- cell 10 (+ the mesher's 2-triangle base; border ring 4), flower cell 2.
 -- FLORA_CROWN = "c88" (round 11, the default since w7.18; "lathe" = the
 -- crowns above): edge and single 80 (6 half-sprite faces x 10 + the row-32
 -- dark band 12 + trunk 4 + the baked-shadow ground decal 4, keyed; 86 with
@@ -99,7 +98,7 @@
 -- the gates are <= 60k a map and <= 45k an eye).
 
 local F = {}
-F.VERSION = "w7.18"
+F.VERSION = "w7.19-single-flowers"
 
 -- Tunables. deps.Constants may override any key of the same name.
 F.DEFAULTS = {
@@ -2417,14 +2416,7 @@ end
 -- ---------------------------------------------------------------------
 -- flowers
 -- ---------------------------------------------------------------------
--- (coordinator: "flowers read as thin red scribbles [at 3/4] ... the art's
--- own flower heads and leaves as upright clumps ... read clearly from above
--- AND from the side; keep it cheap")
--- Two KEYED cards of the whole flower tile (its ground keys away; blooms
--- and leaves stay), cropped to the columns / rows holding the plant's own
--- texels (cropBox): one east-west leaning back FLOWER_LEAN (seen from the south and from above), one
--- north-south leaning west FLOWER_LEAN (seen from the east / west and from
--- above). 4 triangles.
+-- One fixed east-west native-art sheet. Never intersect a second sheet.
 function Ctx:flower(x, y, gy, uv, mid)
   local C = self.C
   local list, newV = self.keyed, self.newV
@@ -2433,13 +2425,13 @@ function Ctx:flower(x, y, gy, uv, mid)
   local n = #list
   local wt = C.FLOWER_CARD_W * (x1 - x0) / 16
   local lt = C.FLOWER_CARD_H * (y1 - y0) / 16
-  for k = 0, 1 do
+  do
+    local k = 0
     local lean = C.FLOWER_LEAN + (hash01(x, y, 95 + k) - 0.5) * 0.2
     local cl, sl = cos(lean), sin(lean)
     -- side axis and lean direction: k = 0 east-west, top north; k = 1
     -- north-south, top west
     local sx, sz, dx, dz = 1, 0, 0, -1
-    if k == 1 then sx, sz, dx, dz = 0, 1, -1, 0 end
     local px = x + 0.5 + (hash01(x, y, 97 + k) - 0.5) * 0.1 - dx * lt * sl * 0.5
     local pz = y + 0.5 + (hash01(x, y, 99 + k) - 0.5) * 0.1 - dz * lt * sl * 0.5
     local hx, hz = sx * wt * 0.5, sz * wt * 0.5
@@ -2459,7 +2451,7 @@ function Ctx:flower(x, y, gy, uv, mid)
     n = n + 6
   end
   self.stats.flowerCells = self.stats.flowerCells + 1
-  return true, 4
+  return true, 2
 end
 
 return F

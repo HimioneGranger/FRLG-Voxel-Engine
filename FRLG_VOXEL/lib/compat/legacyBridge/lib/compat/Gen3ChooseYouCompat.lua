@@ -693,6 +693,64 @@ local function installSummonDelay(ctx)
 end
 
 -- ------------------------------------------------------------ install / uninstall
+-- Keep version adaptation inside FRLG_VOXEL. Catch retains its own lifecycle.
+function M.installFollowerBackend(ctx)
+  local found=ctx.V.mod.find('FRLG_CATCH')
+  local lib=found and found.exports and found.exports.lib
+  if not(lib and type(lib.require)=='function')then return false end
+  local F=lib.require('FollowerSendOut')
+  if not(type(F)=='table' and type(F.wilds)=='function')then return false end
+  local raw=F.wilds
+  local function wrapped(self)
+    -- Native provider switching/retirement and already-bound fast path stay native.
+    if self.wex then return raw(self) end
+    local api=self.deps.owMons and self.deps.owMons()
+    local ok,id=pcall(function()return api and api.providerId and api.providerId()end)
+    if not(ok and id=='wilds_of_hoenn')then return raw(self)end
+    local w=self.deps.find and self.deps.find('wilds_of_hoenn')
+    local ex=w and w.exports
+    if not(w and (w.version or (ex and ex.version))=='1.10.1' and ex
+      and type(ex.vrFollowerOverride)=='function' and type(ex.vrFollowerState)=='function')then return raw(self)end
+    self.wex,self.wMissAt,self.reason=ex,nil,'bound (wilds_of_hoenn)'
+    self.override,self.approach,self.encounter,self.deployed,self.recallAt=nil,nil,nil,nil,nil
+    return ex
+  end
+  F.wilds=wrapped
+  return true,function()if F.wilds==wrapped then F.wilds=raw end end
+end
+
+function M.installLowHealth(ctx)
+  local B=ctx.require('src.core.game3.battle.init')
+  local A=ctx.require('src.core.game3.battle.anim')
+  local Audio=ctx.require('src.core.game3.audio')
+  local SE=ctx.require('src.core.game3.se_ids')
+  if not(B and A and Audio and SE and SE.SE_LOW_HEALTH and type(B.update)=='function' and type(Audio.playSe)=='function')then return false end
+  local function hidden()
+    if not(B.isActive and B.isActive())then return false end
+    local facade=battleState(ctx)
+    if call(facade,'openingPending')then return true end
+    local p=A.present('player')
+    return not p or p.visible==false or (p.alpha~=nil and p.alpha<=0)
+  end
+  local play,update=Audio.playSe,B.update
+  local function hush()
+    if B._lowHpSong and hidden()then
+      if Audio.stopSe then Audio.stopSe(SE.SE_LOW_HEALTH)end
+      B._lowHpSong=false
+    end
+  end
+  local function wrappedPlay(id,...)
+    if id==SE.SE_LOW_HEALTH and hidden()then B._lowHpSong=false;return false end
+    return play(id,...)
+  end
+  local function wrappedUpdate(...)hush();return update(...)end
+  Audio.playSe,B.update=wrappedPlay,wrappedUpdate
+  return true,function()
+    if Audio.playSe==wrappedPlay then Audio.playSe=play end
+    if B.update==wrappedUpdate then B.update=update end
+  end
+end
+
 --- VRITK's seam: install(V, enabled, onBegin[, deps]). V is VRITK's own
 --- module table (V.chooseYou, V.require); enabled() is the Gen2 opening
 --- gate (layer registered, belt built, no errors, hands seen < 10 s ago);
@@ -746,6 +804,11 @@ function M.install(V, enabled, onBegin, deps)
     ctx.restore[#ctx.restore + 1] = undoFx
   elseif not okFx then
     ctx.log("party effects overrides off: " .. tostring(undoFx))
+  end
+  for _,install in ipairs{M.installFollowerBackend,M.installLowHealth}do
+    local ok,on,undo=pcall(install,ctx)
+    if ok and on and type(undo)=='function'then ctx.restore[#ctx.restore+1]=undo
+    else ctx.log('party/audio compatibility unavailable: '..tostring(ok and on or on))end
   end
   installed = ctx
   return ok1 and a and ok2 and b and true or false

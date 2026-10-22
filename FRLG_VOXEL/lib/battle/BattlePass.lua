@@ -1059,9 +1059,9 @@ local function prepareBody(self, view, uiCanvas)
     end
     for _, q in ipairs(cutOwn) do pts[#pts + 1] = q end
     for _, q in ipairs(cutFoe) do pts[#pts + 1] = q end
-    self.cutSpec = { synth = pts, floorY = p.y, occ = cutOcc }
+    self.cutSpec = { synth = pts, floorY = p.y, occ = cutOcc, eye = viewPos }
   else
-    self.cutSpec = { own = cutOwn, foe = cutFoe, floorY = floorY, occ = cutOcc }
+    self.cutSpec = { own = cutOwn, foe = cutFoe, floorY = floorY, occ = cutOcc, eye = viewPos }
   end
   -- wild-message: one log line when the opening dialogue card comes up or its text changes, one when it goes
   -- (edges only: no per-frame string work)

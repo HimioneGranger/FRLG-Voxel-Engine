@@ -29,6 +29,8 @@ local PASS_WSKY, PASS_BATTLE, PASS_HOST, PASS_WLATE, PASS_UICARD = 8, 9, 10, 11,
 local okSp58, Speed58 = pcall(V.require, "perf/Speed58") -- Lab 58 SPEED PATCHES (all off without a gate)
 local okMr, Mr = pcall(V.require, "quest/MrLink"); if not okMr then Mr = {} end -- PORTAL_MR P1 (Mr.s = the portal session, nil without PORTAL_MR)
 
+local FieldTransition = V.require("render/FieldTransition")
+
 local View = {}
 View.__index = View
 
@@ -132,6 +134,7 @@ View._roomEye, View._roomFocus = roomEye, roomFocus
 
 local LightingContext=V.require('lighting/FrLightingContext')
 function View.new(opts)
+  FieldTransition.install(engine("src.core.game3.warp"))
   local self = setmetatable({
     scene = opts.scene, billboards = opts.billboards, panel = opts.panel,
     camera = opts.camera, source = opts.source, log = opts.log or print,
@@ -234,9 +237,11 @@ function View:prepare(game, dt, headPose, opts)
   local battle = opts and opts.battle
   local tx, tz = doorGuard(self, cam, p, game) -- Lab 8 (P2)
   local projectedX,_,projectedZ=self.scene:nativeToWorld(tx,tz)
-  cam:update(dt, { x = projectedX, z = projectedZ, ground = self.ground, facing = p.facing,
+  self.fieldTransition = self.fieldTransition or FieldTransition.new()
+  local held = self.fieldTransition:update(dt, engine("src.core.game3.warp"), cam)
+  if not held then cam:update(dt, { x = projectedX, z = projectedZ, ground = self.ground, facing = p.facing,
     offsetX = off and off[1], offsetZ = off and off[2],
-    blended = Actors.blending() }) -- Lab 8
+    blended = Actors.blending() }) end -- Lab 8
   local darkOK,darkWhy=self.caveDark:update(game,p,battle~=nil and battle~=false or cam.seat~=nil,(self.healerBalls.count or 0)>0)
   if not darkOK and self.caveDark.required and not battle and not cam.seat then return false,darkWhy end
   local m = cam:metresPerCell()
@@ -409,6 +414,7 @@ function View:prepare(game, dt, headPose, opts)
       self._bbShadowAt = function(x, z) return self.scene:shadowAt(x, z) end
     end
     e.viewX, e.viewZ = hx, hz
+    e.skyRecords = scene.visible -- shared loaded scenery bounds, not per-eye visibility
     e.heightAt = self._bbHeightAt
     e.shadowAt = self.shadows and self._bbShadowAt or nil
     e.defaultGround = self.ground
@@ -425,6 +431,7 @@ function View:prepare(game, dt, headPose, opts)
   else
   self.billboards:prepare(actors, {
     viewX = hx, viewZ = hz,
+    skyRecords = scene.visible,
     heightAt = function(x, z) return scene:heightAt(x, z) end,
     shadowAt = self.shadows and function(x, z) return scene:shadowAt(x, z) end or nil,
     defaultGround = self.ground,
@@ -716,7 +723,7 @@ local function renderBody(self, canvas, eye, opts)
       self.log("[FRLG_VOXEL] battle card slot: " .. tostring(nO))
     end
   end
-  local veil = opts.veil
+  local veil = self.fieldTransition and self.fieldTransition:veil(opts.veil) or opts.veil
   if veil and (veil[4] or 0) > 0 then
     g.setShader()
     g.setColor(veil[1] or 0, veil[2] or 0, veil[3] or 0, veil[4])
@@ -744,6 +751,7 @@ function View:renderEye(canvas, eye, opts)
 end
 
 function View:release()
+  FieldTransition.uninstall(engine("src.core.game3.warp"))
   FrFog.clouds(self, nil)
   self.healerBalls:release()
   for k, c in pairs(self.canvases) do

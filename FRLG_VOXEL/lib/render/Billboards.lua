@@ -389,6 +389,47 @@ local function sample(self, env, slot, x, z)
   return ground, srec, sxf, sh, slo
 end
 
+-- Passers clear their own flight corridor, not every distant building in
+-- every loaded map. Bounds are native mesh bounds plus each record's map offset.
+-- No vertex scans, readbacks, per-eye work or mutations of upstream flight plans.
+local SKY_LAYERS={"opaque","under","over","keyed"}
+function Billboards.skySupport(self,a,ground,records)
+  if a._skyGroundY==nil then a._skyGroundY=ground end
+  local ceiling=a._skyCeilingY or -math.huge
+  local cache=self._skyChunkCache
+  if not cache then cache=setmetatable({},{__mode="k"});self._skyChunkCache=cache end
+  local lane=a.flightBounds or {x0=a.x-2,x1=a.x+2,z0=a.z-2,z1=a.z+2}
+  for _,rec in ipairs(records or {})do
+    local ox,oz=rec.ox or 0,rec.oz or 0
+    for _,layer in ipairs(SKY_LAYERS)do
+      local chunks=rec[layer]
+      if type(chunks)=='table' then
+        local c=cache[chunks]
+        if not c or c.n~=#chunks then
+          c={n=#chunks,boxes={}};cache[chunks]=c
+          for _,ch in ipairs(chunks)do
+            local y=ch.y1
+            if type(y)=='number' and y==y and y<math.huge
+              and type(ch.x0)=='number' and type(ch.x1)=='number'
+              and type(ch.z0)=='number' and type(ch.z1)=='number' then
+              c.boxes[#c.boxes+1]={x0=ch.x0,x1=ch.x1,z0=ch.z0,z1=ch.z1,top=y}
+            end
+          end
+        end
+        for _,box in ipairs(c.boxes)do
+          if box.x1+ox>=lane.x0 and box.x0+ox<=lane.x1 and box.z1+oz>=lane.z0 and box.z0+oz<=lane.z1 then
+            ceiling=math.max(ceiling,box.top+3/1.6)
+          end
+        end
+      end
+    end
+  end
+  a._skyCeilingY=ceiling
+  local extra=(a.approachExtraMetres or 0)/1.6
+  local cruise=a._skyGroundY+(a.altitudeMetres or 0)/1.6-extra
+  return math.max(cruise,ceiling)+extra
+end
+
 local function prepareExternal(self, a, env, slot, reuse, cull)
   -- no image yet (e.g. its texture renders next frame): no card, no blob
   local facing = relativeFacing(a.facing, a.x, a.z, env.viewX, env.viewZ, env.cardDir)
@@ -404,6 +445,9 @@ local function prepareExternal(self, a, env, slot, reuse, cull)
   local drop = artBottom and math.max(0, fh - 1 - artBottom) / CELL * k or 0
   local lift = (a.liftPx or 0) / CELL * (a.liftScaled and k or 1)
   local base = ground + lift + 0.01 - drop
+  if a.skyPasser then
+    base=Billboards.skySupport(self,a,ground,env.skyRecords)+0.01-drop
+  end
   local dx, dz
   if env.cardDir then
     dx, dz = env.cardDir[1], env.cardDir[2]

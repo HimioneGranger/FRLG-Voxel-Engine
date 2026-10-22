@@ -44,7 +44,7 @@ M.MEMO_SLOTS = 2          -- decoded shards kept by the synchronous path (Lab 58
 M.MEMO_MAX_BYTES = 14 * 1024 * 1024
 M.TILE = 128              -- getPixel misses crop an aligned TILE x TILE tile of the shard
 M.WILDS_VERSION = "1.5.0" -- legacy public pin
-M.SUPPORTED_VERSIONS = { ["1.5.0"] = true, ["1.7.1"] = true }
+M.SUPPORTED_VERSIONS = { ["1.5.0"] = true, ["1.7.1"] = true, ["1.10.1"] = true }
 M.WORKER = true           -- Lab 60: decode warm jobs on a love.thread worker when the thread API is reachable
 M.WORKER_IDLE_S = 4       -- the worker exits after this long without work (restarted on demand)
 M.WORKER_TIMEOUT_S = 30   -- an in-flight request older than this is treated as a hung worker
@@ -252,7 +252,9 @@ end
 -- ------------------------------------------------------------ the hooks
 local function isShardPath(a)
   local prefix = S.prefix
-  return a:find(prefix, 1, true) == 1 and a:find(".png", -4, true) ~= nil
+  -- 1.10.1 palette PNGs are read with getString(), not paste(): they
+  -- must be real data. Only actual numbered shard files may be sentinels.
+  return a:find(prefix, 1, true) == 1 and a:match("_[0-9]+%.png$") ~= nil
 end
 
 local function realShard(info)
@@ -637,7 +639,7 @@ function M.install(opts)
   local ex = wilds and wilds.exports
   if not (ex and ex.spawnManager and type(ex.atlasStats) == "function") then return false, "wilds_of_hoenn not ready" end
   if not M.SUPPORTED_VERSIONS[wilds.version or ex.version] then return false, "wilds version " .. tostring(wilds.version or ex.version) end
-  if (wilds.version or ex.version) == "1.7.1" and not (type(ex.spriteAtlas) == "table" and type(ex.spriteAtlas.release) == "function") then
+  if (wilds.version or ex.version) ~= "1.5.0" and not (type(ex.spriteAtlas) == "table" and type(ex.spriteAtlas.release) == "function") then
     return false, "wilds_of_hoenn atlas release hook missing"
   end
   local wmod = ex.spawnManager.mod
@@ -793,6 +795,11 @@ function M.sheetInfo(dex, which, shiny)
   local at = raw:find(key, 1, true)
   if not at then return nil, "no entry" end
   local sh, x, y, w, h = raw:match("^%s*:%s*%[%s*(%d+)%s*,%s*(%d+)%s*,%s*(%d+)%s*,%s*(%d+)%s*,%s*(%d+)%s*%]", at + #key)
+  -- 1.10.1 appends a palette-row index to the same rectangle tuple.
+  -- Warm the number pixels; SpriteAtlas owns their exact colour expansion.
+  if not sh then
+    sh, x, y, w, h = raw:match("^%s*:%s*%[%s*(%d+)%s*,%s*(%d+)%s*,%s*(%d+)%s*,%s*(%d+)%s*,%s*(%d+)%s*,%s*%d+%s*%]", at + #key)
+  end
   if not sh then return nil, "unparsed entry" end
   return tonumber(sh), tonumber(x), tonumber(y), tonumber(w), tonumber(h), s.prefix .. a.fam .. "_" .. sh .. ".png"
 end

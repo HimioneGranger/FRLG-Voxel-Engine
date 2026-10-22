@@ -29,7 +29,7 @@ end
 function H:allowed()
   local c = self.ctx
   local P = c.OutdoorPerf
-  return P.precacheFirstLoad ~= false and P.worldCache ~= false and c.vritk:active() == true
+  return P.precacheFirstLoad ~= false and P.worldCache ~= false and (c.android ~= true or c.vritk:active() == true)
 end
 
 local function engineMap()
@@ -78,36 +78,72 @@ function H:ensure(r)
 end
 
 -- Once per Quest frame, before the live pump. -> true while the prepare screen owns this frame
-function H:frame(r, game, battle3d, menuOpen, failed)
-  local xr = r.xr
-  if not self:allowed() then
+function H:frame(r, game, battle3d, menuOpen, failed, mode)
+  local preintro = mode and mode.preintro == true
+  self.preintro = preintro
+  local xr = r and r.xr
+  if self.bootSkipped then return false end
+  if not self:allowed() and not self.failure then
     if self.shown then self:_hide(r) end
     if self.prep and self.prep:isActive() then self.prep:update(game, 0) end -- notices the switch and stops cleanly
     return false
   end
-  if self.prep and self.prep:isTerminal() then
+  if self.prep and self.prep:isTerminal() and not self.failure then
     if self.shown then self:_hide(r) end
     return false
   end
   -- paused (menu, battle, a failed renderer, no XR session): the live game runs as usual, the precache waits
-  if not xr.started or battle3d or menuOpen or failed or not game or game.phase ~= "field" then
+  if (self.ctx.android == true and not preintro and not (xr and xr.started)) or battle3d or menuOpen or (failed and not self.failure) or not game or (game.phase ~= "field" and not (preintro and game.phase == "boot")) then
     if self.shown then self:_hide(r) end
     return false
   end
+  if self.failure then
+    local ctl = xr and xr.lastControls
+    local down = preintro and mode.bootB == true or not preintro and (self.ctx.android == true and ctl and ctl.b == true
+      or self.ctx.android ~= true and love and love.keyboard and love.keyboard.isDown("return") == true)
+    if self.failureWas ~= nil and down and not self.failureWas then
+      self.failure, self.failedDismissed = nil, true
+      self:_hide(r)
+      return false
+    end
+    self.failureWas = down == true
+    self.shown = true
+    return true
+  end
+  if self.failedDismissed then return false end
+  -- A fresh B after the native placeholder was painted can skip before
+  -- constructing a driver; it remains skipped for this game session.
+  if preintro and mode.bootPressed and not self.prep then
+    self.bootSkipped=true
+    self:_hide(r)
+    return false
+  end
+  -- Announce first, and require an actually presented panel/window frame before
+  -- cache validation, planning, uploads or collection can begin.
+  if not self.presented then
+    self.shown = true
+    if xr then xr.panelFollow = true end
+    return true
+  end
   local prep = self:ensure(r)
-  if not prep then return false end
+  if not prep then self.failure = self.failed or "unavailable"; self.shown = true; return true end
   -- B / Y: skip for now (a press that began before the screen did is ignored until released)
-  local ctl = xr.lastControls
-  local b = ctl ~= nil and ctl.b == true
+  local ctl = xr and xr.lastControls
+  local b = preintro and mode.bootB == true or not preintro and ctl ~= nil and ctl.b == true
   if self.bWas == nil then self.bWas = b
   else
     if b and not self.bWas and prep:isActive() then prep:skip() end
     self.bWas = b
   end
+  if preintro and mode.bootPressed and prep:isActive() then prep:skip() end
   local active = prep:update(game, H.BUDGET_MS / 1000)
   if active then
     self.shown = true
-    xr.panelFollow = true
+    if xr then xr.panelFollow = true end
+  elseif prep.phase == "failed" then
+    self.failure, self.failureWas, self.shown = prep.reason or "unavailable", nil, true
+    self.ctx.log("World preparation failed: " .. tostring(self.failure))
+    return true
   elseif self.shown then
     self:_hide(r)
   end
@@ -116,28 +152,48 @@ end
 
 function H:_hide(r)
   self.shown = false
+  self.presented = false
   if r and r.xr then r.xr.panelFollow = false end
   if self.screen then self.screen:release(); self.screen = nil end
 end
 
 -- The prepare canvas for the panel quad (never raises). -> Canvas | nil
 function H:canvas(w, h)
-  if not (self.shown and self.prep and self.Screen and self.prep:isVisible()) then return nil end
+  if not (self.shown and self.Screen) then return nil end
   local ok, c = pcall(self._canvas, self, w, h)
   if ok then return c end
   self.ctx.log("prepare screen failed: " .. tostring(c))
+  self.failed, self.failedDismissed = tostring(c), true
+  self:_hide(nil)
   return nil
 end
 
 function H:_canvas(w, h)
   local s = self.screen
   if not s then s = self.Screen.new(); self.screen = s end
-  return s:canvas(w, h, self.prep:progress(self.prog), self.clock())
+  local prog = self.failure and { phase = "failed", done = 0, total = 0, frac = 0 } or self.prep and self.prep:progress(self.prog) or { phase = "check", done = 0, total = 0, frac = 0 }
+  prog.canSkip = not self.failure and (self.preintro or self.ctx.android == true) and self.prep ~= nil and self.prep:isActive()
+  prog.continueHint = self.failure and ((self.preintro or self.ctx.android == true) and "Press B to continue with on-demand loading." or "Press Enter to continue with on-demand loading.") or nil
+  return s:canvas(w, h, prog, self.clock())
+end
+
+-- Call only after the outer renderer successfully presented the screen.
+function H:skipSession(r)
+  self:release(r)
+  self.bootSkipped = true
+end
+
+function H:showFailure(reason)
+  self.failure, self.failureWas, self.shown = tostring(reason), nil, true
+end
+
+function H:presentedFrame()
+  if self.shown then self.presented = true end
 end
 
 function H:status()
   local p = self.prep
-  if not p then return { phase = self.failed and "failed" or "idle", reason = self.failed } end
+  if not p then return { phase = self.bootSkipped and "skipped" or self.failed and "failed" or "idle", reason = self.failed } end
   local s = {}
   for k, v in pairs(p.stats) do s[k] = v end
   s.phase, s.reason, s.done, s.total = p.phase, p.reason, p.done, p.total
@@ -148,13 +204,15 @@ end
 -- The switch turned ON again, or the cache was cleared: look at the cache again at the next opportunity
 function H:rearm()
   if self.prep then self.prep:rearm() end
-  self.bWas = nil
+  self.bWas, self.presented = nil, false
+  self.failure, self.failureWas, self.failedDismissed, self.failed, self.bootSkipped = nil, nil, nil, nil, nil
 end
 
 function H:release(r)
   self:_hide(r)
   if self.prep and self.prep:isActive() then self.prep:skip(); pcall(self.prep.update, self.prep, nil, 0) end
   self.prep, self.bWas = nil, nil -- a new session starts a fresh driver
+  self.failure, self.failureWas, self.failedDismissed, self.failed, self.bootSkipped = nil, nil, nil, nil, nil
 end
 
 -- The switch (or WORLD CACHE) was turned OFF: stop a running precache at once (main.lua stops calling frame())

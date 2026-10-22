@@ -38,6 +38,10 @@
 -- Not reachable from a mod, so assumed: Config.REACHABLE_SPAWNS stays true (if it were off the stock body measures nothing,
 -- every 60 ticks, and spawning stays unrestricted; no harm, one wasted check).
 --
+-- New FireRed1.10.1 land placement uses the native filtered reachable view:
+-- near-player3-12cell band for new/refill encounters, bounded free probes and
+-- stock fallback. Distant ordinary land residents leave through native effects,
+-- one at a time, so the native refill follows a continuously moving player.
 -- Mod sandbox: no package, no debug. Engine modules only through pcall(require).
 local M = {}
 
@@ -56,6 +60,10 @@ local OBJECTS = "src.core.game3.objects"
 local DEFAULT_STEPS = 32
 local FIRST_MEASURE_TICKS = 60 -- stock: a map whose first measure never came in is retried after this many ticks
 local EMPTY = {}
+-- FireRed1.10.1: prioritize new ground encounters near the player without
+-- changing encounter rolls, eligible counts or the eight-mon cap.
+M.NEAR_MIN_CELLS, M.NEAR_MAX_CELLS, M.NEAR_PROBES = 3, 12, 8
+M.RETIRE_CELLS, M.RETIRE_TICKS = 16, 30
 
 local S = nil -- installed state (nil when not installed)
 
@@ -245,6 +253,64 @@ local function stepJob(st, self)
   return true
 end
 
+-- Shared read-only local view, invalidated by native view identity or player cell.
+local function nearPool(st, source, P)
+  local list=source.view and source.view.land
+  if type(list)~="table" then return nil end
+  local c=st.nearCache
+  if not c or c.list~=list or c.x~=P.cellX or c.y~=P.cellY then
+    c={list=list,x=P.cellX,y=P.cellY,pool={}}
+    local min2,max2=M.NEAR_MIN_CELLS^2,M.NEAR_MAX_CELLS^2
+    for _,cell in ipairs(list)do
+      local d2=(cell.x-c.x)^2+(cell.y-c.y)^2
+      if d2>=min2 and d2<=max2 then c.pool[#c.pool+1]=cell end
+    end
+    st.nearCache=c;st.nearBuilds=st.nearBuilds+1
+  end
+  return c
+end
+
+-- Native spawning counts LEAVING entities separately from active ones. Never
+-- edit either count or an entity position: the host cap still counts every live
+-- entity, including a departing one, until native tick removes it.
+local function refreshResidents(st, sm)
+  if not st.rolling or not sm.filled or st.job then return end
+  local tick = tonumber(sm.ticks)
+  if not tick or tick < (st.refreshAt or 0) then return end
+  st.refreshAt = tick + M.RETIRE_TICKS
+  local P, patch = st.Player, st.enginePatch
+  if not (P and type(P.cellX)=="number" and type(P.cellY)=="number") then return end
+  for _, name in ipairs({"fieldBusy", "battleActive", "safariActive"}) do
+    local ok, busy = pcall(patch[name])
+    if not ok or busy then return end
+  end
+  if not sm.source:isEligible() then return end
+  -- No local grass/free slot means retirement cannot improve nearby visibility.
+  -- Do not churn distant native-fallback spawns while crossing pavement.
+  local c=nearPool(st,sm.source,P)
+  local free=false
+  for _,cell in ipairs(c and c.pool or EMPTY)do
+    if sm:_cellFree(cell.x,cell.y)then free=true;break end
+  end
+  if not free then return end
+  local far, far2 = nil, M.RETIRE_CELLS^2
+  for _, e in pairs(sm.entities or EMPTY) do
+    if e.terrain=="land" and e.state=="available" and not st.protected[e]
+      and not (e.engaged or e._vrCapture or e.shiny or e.roamer or e.lured or e.react
+        or e.fx or e.moving or e.charging or e.chaseHome or e.runAway or e.parting
+        or e.noFight or e.rare or e.legendary or e.static or e.scripted or e.isStatic
+        or e.rareTier or e.rarityTier)
+      and type(e.cellX)=="number" and type(e.cellY)=="number" then
+      local d2=(e.cellX-P.cellX)^2+(e.cellY-P.cellY)^2
+      if d2>far2 then far,far2=e,d2 end
+    end
+  end
+  if far then
+    sm:despawn(far.id, {animate=true})
+    st.retired=st.retired+1
+  end
+end
+
 --------------------------------------------------------------------------------------------------- install / uninstall
 
 local function setOverride(st, obj, key, fn)
@@ -319,24 +385,81 @@ function M.install(ctx)
     local reach = self.reach
     local outside = false
     if reach and px and not st.keyBad then outside = reach[py * 65536 + px] ~= true end -- the stock set's key (Reachability.key)
-    if outside or (not reach and self.reachAge >= FIRST_MEASURE_TICKS) then
+    local stale = ctx.version == "1.10.1" and reach and type(self._reachStale) == "function" and self:_reachStale()
+    if outside or stale or (not reach and self.reachAge >= FIRST_MEASURE_TICKS) then
       startJob(st, self, reach ~= nil)
     end
   end)
 
   local prevClear, prevRefill = st.prevClearAll, st.prevRefill
   setOverride(st, sm, "clearAll", function(self, ...)
-    if S == st and self == sm then cancel(st) end
+    if S == st and self == sm then cancel(st);st.nearCache=nil;st.refreshAt=nil;st.protected=setmetatable({}, {__mode="k"}) end
     return prevClear(self, ...)
   end)
 
   setOverride(st, sm, "refill", function(self, terrain, ...)
     -- the first measure of a map is still running: never spawn outside the area
     if S == st and self == sm and st.job and not self.reach then return end
+    if S == st and self == sm then refreshResidents(st, self) end
     return prevRefill(self, terrain, ...)
   end)
 
+  -- Select only from the stock reachable land view. Water and other Wilds
+  -- versions retain their original picker. Captures, shinies and engaged mons
+  -- are never retired by the rolling refresh.
+  local GV=engine("src.core.GameVersion")
+  local okLayout,layout=false,nil
+  if GV and type(GV.layout)=="function"then okLayout,layout=pcall(GV.layout)end
+  if ctx.version=="1.10.1"and okLayout and layout=="frlg"and type(source.randomCell)=="function"and type(sm._cellFree)=="function"then
+    local previousRandom=source.randomCell
+    st.nearby=true;st.nearPicks,st.nearFallbacks,st.nearBuilds=0,0,0
+    local patch=ctx.enginePatch
+    st.enginePatch=patch;st.protected=setmetatable({}, {__mode="k"});st.retired=0
+    st.rolling=type(patch)=="table" and type(patch.fieldBusy)=="function"
+      and type(patch.battleActive)=="function" and type(patch.safariActive)=="function"
+      and type(sm.despawn)=="function"
+    -- Tool/script-selected spawns are not ordinary refill encounters. Keep their
+    -- identity protected without adding private fields to native entities.
+    if st.rolling and type(sm.spawnSpecies)=="function" then
+      local prevSpecies=sm.spawnSpecies
+      setOverride(st,sm,"spawnSpecies",function(self,...)
+        local first=self.nextId or 0
+        local a,b=prevSpecies(self,...)
+        if S==st and self==sm then
+          for id=first,(self.nextId or first)-1 do
+            local e=self.entities[id];if e then st.protected[e]=true end
+          end
+        end
+        return a,b
+      end)
+    end
+    setOverride(st,source,"randomCell",function(self,terrain,rng)
+      local P=st.Player
+      local list=self.view and self.view.land
+      if S~=st or self~=source or terrain~="land"or not(P and type(P.cellX)=="number"and type(P.cellY)=="number")or type(list)~="table"then
+        return previousRandom(self,terrain,rng)
+      end
+      local c=nearPool(st,self,P)
+      local n=#c.pool
+      if n>0 then
+        local pick=rng or math.random
+        for _=1,math.min(n,M.NEAR_PROBES)do
+          local cell=c.pool[pick(1,n)]
+          -- Existing _cellFree owns occupancy and the player's current/next
+          -- tile. Recheck on every pick; never cache occupancy between ticks.
+          if sm:_cellFree(cell.x,cell.y)then st.nearPicks=st.nearPicks+1;return cell end
+        end
+      end
+      -- Empty/full local grass must not starve the ordinary native refill.
+      st.nearFallbacks=st.nearFallbacks+1
+      return previousRandom(self,terrain,rng)
+    end)
+  end
+
+  -- 1.10.1 already owns a cached view used directly by randomCell/refill.
+  -- Preserve that view and its unrestricted ambient-water eligibility.
   local prevEligible = st.prevEligible
+  if ctx.version ~= "1.10.1" then
   setOverride(st, source, "eligibleCells", function(self, terrain)
     if S ~= st or self ~= st.source then return prevEligible(self, terrain) end
     local list = self.cells and self.cells[terrain]
@@ -360,6 +483,8 @@ function M.install(ctx)
     c.arr[terrain] = out
     return out
   end)
+
+  end
 
   S = st
   return true, "installed (" .. steps .. " canEnter calls per tick)"
@@ -396,6 +521,8 @@ function M.status()
     started = st.started, completed = st.completed, cancelled = st.cancelled, errors = st.errors,
     slices = st.slices, maxSliceCalls = st.maxSliceCalls, totalCalls = st.totalCalls,
     lastCells = st.lastCells, lastCalls = st.lastCalls, lastTicks = st.lastTicks,
+    rolling = st.rolling == true, retired = st.retired or 0,
+    nearby = st.nearby == true, nearPicks = st.nearPicks or 0, nearFallbacks = st.nearFallbacks or 0, nearBuilds = st.nearBuilds or 0,
   }
 end
 

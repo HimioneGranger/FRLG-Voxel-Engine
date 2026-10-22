@@ -1,5 +1,6 @@
 # Local game inputs and generated caches
 *.gba
+*.nds
 *.gbc
 *.gb
 *.rom

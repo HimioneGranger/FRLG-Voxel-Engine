@@ -7,6 +7,11 @@ Gen1Recomp Gen 3 host. This beta includes the latest reviewed buildings and
 **Engine only:** the host, game data and optional gameplay mods are supplied
 separately. No ROMs or saves are included.
 
+**Beta 4** brings the engine changes used by FireRed lab build 3232: clearer
+world preparation, PC mouse controls, updated Wilds compatibility, nearby
+population refresh and black stair/escalator transitions. See the
+[change notes](docs/CHANGELOG.md) for scope and known limits.
+
 ## What has been overhauled
 
 - **Buildings:** shaped roofs, overhangs and trim, complete side/rear walls,
@@ -43,9 +48,10 @@ All engine compatibility code starts automatically from `FRLG_VOXEL`. When
 upgrading from beta 1, remove its separate `VRITK_FRLG_HOST` folder. Keep your
 save files; this update does not require a new game.
 
-The tested integration baseline is Gen 3 Lab 62
-(`0.3.33-gen3.lab.62-runtime-fixes-wilds171`), with mod API 2 and LÖVE graphics.
-Quest also needs the host's OpenXR support. Other host releases are unverified.
+Beta 4 was checked against the FireRed lab 3232 host (engine 0.3.33, mod API 2,
+LÖVE graphics). Quest also needs the host's OpenXR support. The new preparation
+screen and PC controls need matching host hooks; older hosts are unverified
+for these features. The host application is supplied separately.
 
 ## Mod compatibility
 
@@ -56,7 +62,8 @@ this is not a claim of compatibility with every upstream version.
 | Mod / integration | Support included in this beta |
 | --- | --- |
 | VRITK 0.3.1-gen-compat.1 | Engine discovery, hands/backpack and interaction adapters; apply the included lookup update |
-| Wilds of Hoenn 1.5.0 / 1.7.1 | FireRed Pokémon/follower drawing starts automatically inside the engine |
+| Wilds of Hoenn 1.10.1 | Current tested adapter: Pokémon, followers, nearby population refresh and ambient birds |
+| Wilds of Hoenn 1.5.0 / 1.7.1 | Earlier adapter paths retained; newer features target 1.10.1 |
 | Untamed Advanced / FRLG overworld mons | Provider adapter included; still requires its external Overworld Mons provider |
 | TWS / private weather build | Weather and rendering hooks |
 | FRLG Catch 0.4.0-lab8.2 | Capture adapters and engine discovery; apply the included lookup update |

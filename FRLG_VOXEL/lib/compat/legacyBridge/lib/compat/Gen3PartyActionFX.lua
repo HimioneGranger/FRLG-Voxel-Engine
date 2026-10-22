@@ -36,6 +36,35 @@ M.HANDOFF_SEC = 0.05 -- belt-switch: s of overlap between the user's coloured pi
 M.OPENING_BEAMS = true -- vr-doubles: false = battle openings (singles and doubles) play the native send-out only
 local stats={started=0,acquired=0,draws=0,completed=0,failed=0}
 local liveEvent
+local audioOwners=setmetatable({},{__mode='k'})
+local function stopSound(owner,release)
+  for _,source in pairs(owner._gen3PartyAudio or {})do
+    pcall(source.stop,source);if release then pcall(source.release,source)end
+  end
+  if release then owner._gen3PartyAudio=nil;audioOwners[owner]=nil end
+end
+-- Own cues only for accepted custom effects; never layer native OPEN/TRADE.
+function M.playSound(kind,owner,V,game)
+  if kind~='deploy'and kind~='recall'then return false end
+  local ok,played=pcall(function()
+    owner._gen3PartyAudio=owner._gen3PartyAudio or {};audioOwners[owner]=true
+    local source=owner._gen3PartyAudio[kind]
+    if not source then
+      local mod=kind=='recall'and Host and Host.mod or V and V.mod
+      local path=kind=='recall'and 'assets/party/recall.mp3'or 'assets/party/sendout.ogg'
+      local bytes=assert(mod and mod:read(path),'custom '..kind..' audio missing')
+      local file=love.filesystem.newFileData(bytes,kind=='recall'and 'recall.mp3'or 'sendout.ogg')
+      local loaded,result=pcall(love.audio.newSource,file,'static');file:release()
+      assert(loaded,result);source=result;owner._gen3PartyAudio[kind]=source
+    end
+    local volume=tonumber(game and game.save and game.save.options and game.save.options.sfxVol)or 7
+    if volume~=volume then volume=7 end
+    source:stop();source:setLooping(false);source:setVolume(.58*math.max(0,math.min(7,volume))/7)
+    return source:play()~=false
+  end)
+  if not(ok and played)then stats.soundFailures=(stats.soundFailures or 0)+1;return false end
+  stats.sounds=(stats.sounds or 0)+1;return true
+end
 function M.status()
   local out={};for k,v in pairs(stats) do out[k]=v end
   if liveEvent then
@@ -52,6 +81,20 @@ function M.battleVisuals()
 end
 function M.install(V)
   local FX = V.require('PartyActionFX')
+  local headingUndo
+  local okHeading,Heading=pcall(function()return Host.require('compat/Gen3BallHeadingCompat')end)
+  if okHeading and Heading then
+    local ok,undo=pcall(Heading.install,V)
+    if ok and type(undo)=='function'then headingUndo=undo end
+  end
+  local subjectUndo
+  local okSubject,Subject=pcall(function()return Host.require('compat/Gen3PartySubjectCompat')end)
+  if okSubject and Subject then
+    local ok,undo=pcall(Subject.install,V)
+    if ok and type(undo)=='function'then subjectUndo=undo end
+  end
+  stats.subjectAdapterInstalled=subjectUndo~=nil
+  stats.headingAdapterInstalled=headingUndo~=nil
   local Energy = V.require('catching/release_energy')
   local okN, Native = pcall(function() return Host and Host.require and Host.require('compat/NativeBallFX') end)
   if not (okN and type(Native) == 'table') then Native = nil end
@@ -132,9 +175,11 @@ function M.install(V)
       e.renderer = Energy.new(e.prop.Voxel3D,e.prop.Mat4)
     end
     stats.acquired=stats.acquired+1
+    if not e.soundPlayed then e.soundPlayed=M.playSound(e.kind,e.owner,V,e.game)end
     return true
   end
   FX.reset = function(self, reason)
+    stopSound(self,false)
     if Beams and beamLists[self] then Beams.clear(beamLists[self], reason or 'reset') end
     clear(self, reason or 'reset')
     return original.reset(self, reason)
@@ -144,19 +189,20 @@ function M.install(V)
     if c and c.switchRecall and c.recallBattler ~= nil then
       if not (Beams and combinedDeps and Beams.startRecall) then return false end
       local ok = Beams.startRecall(beamList(self), c, combinedDeps, V)
+      if ok==true then M.playSound('recall',self,V,game)end
       return ok == true
     end
     -- vr-doubles: a two-slot opening throw adds its own beam and leaves every other effect running
     if c and c.opening and (c.openingBattler ~= nil or c.rseBattler ~= nil) then
       if not (M.OPENING_BEAMS and Beams and combinedDeps) then return false end
       local ok = Beams.start(beamList(self), c, combinedDeps, V)
+      if ok==true then M.playSound('deploy',self,V,game)end
       return ok == true
     end
     self:reset('superseded')
     -- Gen3 battle openings retain native ball presentation and native audio.
     if c.opening then return false end
     if not (prop and prop._gen3PartySubject) then return original.play(self,c,target,game,entity,prop) end
-    if prop._gen3PartySound then pcall(prop._gen3PartySound,prop,c.kind) end
     local origin = c.target and (c.target.mouth or c.target.origin or (c.target.ray and c.target.ray.origin))
     if not (origin and game and game.overworld) then return false end
     local mode = modeFor()
@@ -169,7 +215,7 @@ function M.install(V)
     else
       duration = c.kind=='recall' and Energy.RECALL_DURATION or Energy.DURATION
     end
-    local e = {kind=c.kind,index=c.index,mon=c.mon,origin=origin,prop=prop,age=0,wait=0,
+    local e = {kind=c.kind,index=c.index,mon=c.mon,origin=origin,prop=prop,age=0,wait=0,owner=self,
       game=game,save=game.save,map=game.overworld.map,mode=mode,
       ballId=Native and Native.ballIdForItem(c.mon and c.mon.pokeball) or 0,
       duration=duration}
@@ -297,12 +343,16 @@ function M.install(V)
     return original.mouth(self,index,point)
   end
   FX.dispose = function(self)
+    stopSound(self,true)
     if Beams and beamLists[self] then Beams.clear(beamLists[self], 'disposed') end
     if rings[self] and self.backend and self.backend.release then pcall(self.backend.release, rings[self]) end
     rings[self] = nil
     clear(self,'disposed');return original.dispose(self)
   end
   return function()
+    if headingUndo then headingUndo()end
+    if subjectUndo then subjectUndo()end
+    for owner in pairs(audioOwners)do stopSound(owner,true)end
     for owner in pairs(owners) do clear(owner,'uninstalled') end
     if Beams then for _, list in pairs(beamLists) do Beams.clear(list, 'uninstalled') end end
     M._beamStatus = nil

@@ -68,6 +68,21 @@ if generation ~= 3 then
   return
 end
 
+-- Own the early engine seams inside this folder. On the tester host the
+-- optional gen3-hd-sprites dependency orders Wilds after this entry runs.
+do
+  local ok, Seams = pcall(V.require, "compat/EngineSeams")
+  if ok and type(Seams) == "table" then
+    local installed, why = Seams.install(log)
+    mod.exports.engineSeams = { version = 1, status = Seams.status, uninstall = Seams.uninstall }
+    if not installed then log("engine seams unavailable: " .. tostring(why)) end
+    mod.hooks:wrap("core.quit_to_launcher", function(nextFn)
+      pcall(Seams.uninstall)
+      return nextFn()
+    end)
+  else log("engine seams unavailable: " .. tostring(Seams)) end
+end
+
 -- Keep compatibility exports separate from the renderer; start below after initialization.
 V.require('compat/LegacyBridge').expose(V)
 
@@ -82,6 +97,14 @@ local frlgOptionRows = mod.options:define({
     choices = { { "FIRST PERSON", "first" }, { "THIRD PERSON", "third" }, { "3/4 VIEW", "overview" } },
     default = "first",
     help = "First person at the trainer's eye height; a raised camera behind the trainer; or 3/4 VIEW like the original screen (Quest: a seated table-top model).",
+  },
+  {
+    key = "mouse_keyboard", type = "toggle", label = "MOUSE & KEYBOARD", default = false,
+    help = "F6 toggles mouse look + camera-relative WASD in first/third person. Click the world to capture the mouse. Escape releases it; menus and focus loss release automatically. Existing A/B/START keys remain available. PC only; Quest keeps its existing VR controls.",
+  },
+  {
+    key = "mouse_sensitivity", type = "number", label = "MOUSE SENSITIVITY", default = 100, min = 25, max = 250, step = 25,
+    help = "Mouse look speed in percent. Applies immediately.",
   },
   {
     key = "turning", type = "choice", label = "VOXEL TURNING",
@@ -247,7 +270,7 @@ local frlgOptionRows = mod.options:define({
   },
   {
     key = "perf_loading_screen", type = "toggle", label = "LOADING SCREEN", default = true,
-    help = "Quest: after a warp, Fly or entering a map that is not built yet, show a black Loading screen until the nearby maps are built (at most 8 s), clean up memory behind it, then reveal the world. Walking over a map connection never shows it. OFF is the old behaviour (the flat game is shown while the world builds).",
+    help = "Show Preparing world while nearby terrain is being built. Quest also warms the view before revealing it. OFF shows the flat game while terrain builds.",
   },
   {
     key = "perf_speed58", type = "toggle", label = "SPEED PATCHES", default = true,
@@ -256,7 +279,7 @@ local frlgOptionRows = mod.options:define({
   -- Lab 59: lib/perf/FrPrepare.lua (also on the OPTION screen: WORLD LOADING page, shortened label)
   {
     key = "perf_precache_first_load", type = "toggle", label = "PRECACHE ON FIRST LOAD", default = true,
-    help = "Quest: when the saved maps are missing (the first start, an update, or after CLEAR WORLD CACHE) every map is built once behind a Preparing 3D world screen, made from your own game data. B skips for now and it carries on next time. OFF builds each map when you first visit it (the old behaviour). Needs WORLD CACHE ON.",
+    help = "When saved maps are missing, build them behind a Preparing world screen using your game data. Quest B skips for now. OFF builds maps as you visit them. Needs WORLD CACHE ON.",
   },
   -- Lab 49: lib/quest/FlatRate.lua (also on the OPTION screen under VR PERFORMANCE)
   {
@@ -451,6 +474,14 @@ local S = {
   wear = {},             -- Lab 50: FlatRate.wearStep state (lastVisible, why, visibleFrames)
   wearInfo = {},         -- Lab 50: the reused wearStep input table
 }
+-- Desktop-only options must not appear on Quest, even with old saved values.
+if S.android then
+  for i = #frlgOptionRows, 1, -1 do
+    local key = frlgOptionRows[i].key
+    if key == "mouse_keyboard" or key == "mouse_sensitivity" then table.remove(frlgOptionRows, i) end
+  end
+end
+local mouseControls, mouseStep
 local R = nil -- lazily built renderer objects
 local flat = nil -- Lab 49: the FlatRate instance, built below once its gate functions exist
 
@@ -523,6 +554,7 @@ if FreeMove then
 end
 mod.hooks:wrap("input.step", function(nextFn)
   if ActorsMod then pcall(ActorsMod.beginTick) end
+  if mouseStep then mouseStep() end
   if FreeMove then pcall(FreeMove.preTick) end
   return nextFn()
 end, 40)
@@ -729,8 +761,8 @@ local function getWorldCache()
   worldCache = false
   if okPC and type(PrecacheMod) == "table" then
     local okN, pc = pcall(PrecacheMod.new, { cache = mod.cache, mod = mod, log = log,
-      enabled = function() return OutdoorPerf.worldCache and vritk:active() end,
-      gate = function() return vritk:active() end })
+      enabled = function() return OutdoorPerf.worldCache and (not S.android or vritk:active()) end,
+      gate = function() return not S.android or vritk:active() end })
     if okN and pc then worldCache = pc else log("world cache not built: " .. tostring(pc)) end
   elseif not okPC then
     log("world cache failed to load: " .. tostring(PrecacheMod))
@@ -752,7 +784,7 @@ local function getPrepareHost()
   prepareHost = false
   if okPH and type(PrepareHost) == "table" then
     local okN, h = pcall(PrepareHost.new, { mod = mod, log = log, V = V, Mods = Mods, OutdoorPerf = OutdoorPerf, vritk = vritk,
-      worldCache = getWorldCache, grass = function() return grassRenderer end })
+      worldCache = getWorldCache, grass = function() return grassRenderer end, android = S.android })
     if okN and h then prepareHost = h else log("prepare host not built: " .. tostring(h)) end
   elseif not okPH then
     log("prepare host failed to load: " .. tostring(PrepareHost))
@@ -760,6 +792,7 @@ local function getPrepareHost()
   return prepareHost or nil
 end
 
+local bootPrepare -- set after renderer construction helpers
 local function ensureRenderer()
   if R then return R end
   grassRenderer = RetroGrass.new({shape=opt("fr_grass_shape"),ground="native"})
@@ -859,7 +892,7 @@ local function applyTurning()
   -- Lab 8: free walking always uses LOOK on the headset (a world turning with
   -- every change of travel direction would spin the player).
   local free = FreeMove and FreeMove.active() or false
-  R.camera.follow = (not S.android) or (opt("turning") == "follow" and not free)
+  R.camera.follow = not (mouseControls and mouseControls:looking()) and ((not S.android) or (opt("turning") == "follow" and not free))
 end
 
 -- W4 P2: root_shift, detected from main.lua right after r.view:pump(...),
@@ -909,6 +942,7 @@ end
 
 -- Stop drawing the voxel view for the rest of the session; stock view stays.
 local function fail(where, err)
+  if mouseControls then mouseControls:release() end
   if S.failed then return end
   S.failed = where .. ": " .. tostring(err)
   log("voxel view disabled for this session, flat fallback: " .. S.failed)
@@ -1134,12 +1168,48 @@ end
 -- OpenXR session stopped (XRSession:stop also restores FrameCap), GPU
 -- objects released, retry state reset. Called from core.quit_to_launcher,
 -- core.session_ending (engine), and the game's returnToLauncher / onExit.
+-- Mouse input policy belongs to the engine; the host only forwards events.
+if not S.android then mouseControls = V.require("input/MouseKeyboard").new({
+  mouse = love.mouse, window = love.window, free = FreeMove,
+  sensitivity = function() return opt("mouse_sensitivity") end,
+}) end
+mouseStep = function()
+  if S.android then return end
+  local game = currentGame()
+  local camera = R and R.camera
+  local allowed = not S.android and opt("mouse_keyboard") == true and S.voxelOn and not S.failed
+    and camera and camera.mode ~= "overview" and not camera.seat
+    and fieldPhase(game) and not menuOpen()
+    and not (prepareHost and prepareHost.shown)
+    and not (S.loading and S.loading.holding) and not S.desktopBuilding
+  mouseControls:context(allowed == true, camera, game and game.input, opt("movement") ~= "grid")
+  mouseControls:step()
+end
+if not S.android then
+mod.hooks:wrap("input.mouse", function(nextFn, game, ev)
+  if S.android then return nextFn() end
+  mouseStep()
+  if mouseControls:pointer(ev) then return end
+  return nextFn()
+end, 90)
+mod.hooks:wrap("input.focus", function(nextFn, game, ev)
+  if S.android then return nextFn() end
+  mouseControls:focus(ev and ev.active == true)
+  return nextFn()
+end, 90)
+end
+
 local function teardown(reason)
+  if mouseControls then mouseControls:release() end
+  if bootPrepare then bootPrepare:reset() end
+  S.preintroReady = nil
   if grassRows and GrassOptions then pcall(GrassOptions.uninstall,grassRows);grassRows=nil end
   if vrRows and VrControls then pcall(VrControls.uninstall, vrRows); vrRows = nil end
   local r = R
   R = nil
-  if prepareHost then pcall(prepareHost.release, prepareHost, r) end -- Lab 59
+  if prepareHost then pcall(prepareHost.release, prepareHost, r) end
+  if S.desktopLoading then pcall(S.desktopLoading.release, S.desktopLoading); S.desktopLoading = nil end
+  S.desktopBuilding = false -- Lab 59
   S.xrTries, S.xrGaveUp, S.xrNextTry = 0, false, 0
   S.perf = nil
   S.lastRootId = nil -- W4 review fix #2: a fresh session's first root must not diff against the torn-down one
@@ -1171,11 +1241,49 @@ local function teardown(reason)
   return true
 end
 
+-- Boot loading uses the native panel before the stereo session or onboarding.
+bootPrepare = V.require("perf/BootPrepare").new({
+  enabled = function() return S.bootEnabled and OutdoorPerf.precacheFirstLoad ~= false and OutdoorPerf.worldCache ~= false end,
+  host = getPrepareHost, renderer = ensureRenderer,
+  screen = V.require("render/PrepareScreen"), clock = clock,
+  ready = function(value) S.preintroReady = value end,
+  log = log,
+})
+mod.hooks:wrap("game.boot_prepare", function(nextFn, game, dt)
+  if bootPrepare:hold(game) then return true end
+  return nextFn()
+end, 100)
+mod.hooks:wrap("render.boot", function(nextFn, game, w, h)
+  if bootPrepare:draw(game, w, h, S.frame) then return true end
+  return nextFn()
+end, 100)
+
 -- ------------------------------------------------------------ desktop view
 local function drawDesktop(ctx, battle3d)
+  S.desktopBuilding = false
   local game = currentGame()
   local r = ensureRenderer()
+  mouseStep()
   applyTurning()
+  local ph
+  if not battle3d and S.voxelOn and (not S.failed or (prepareHost and prepareHost.failure)) and not menuOpen() then
+    ph = getPrepareHost()
+    if ph and ph:frame(r, game, false, false, S.failed ~= nil) then
+      local g = love.graphics
+      local w, h = g.getDimensions()
+      local c = ph:canvas(w, h)
+      if c then
+        g.push("all"); g.origin(); g.setShader(); g.setScissor(); g.setStencilTest(); g.setDepthMode()
+        g.setColorMask(true, true, true, true); g.setWireframe(false); g.setBlendMode("alpha"); g.setColor(1, 1, 1, 1); g.draw(c, 0, 0); g.pop()
+        ph:presentedFrame()
+        r.input:releaseAll()
+        return true
+      end
+      error("Preparing world screen unavailable")
+    end
+  end
+  if S.failed then return false end
+  r.view.deferRoot = OutdoorPerf.loadingScreen ~= false and not battle3d
   local _, pumpDx, pumpDz = r.view:pump(game, { budgetMs = 8 })
   noteRootShift(r, pumpDx, pumpDz) -- W4
   local bp = battle3d and r.battle or nil -- W6: pin the battle seat before the camera updates
@@ -1184,6 +1292,24 @@ local function drawDesktop(ctx, battle3d)
   local ok, why = r.view:prepare(game, dtNow(), nil, { cameraOffset = cameraOffset(),
     battle = bp and bp:viewOpts() or nil })
   if not ok then
+    local rootError = r.scene:rootFailure()
+    if rootError and not S.failed then
+      fail("scene", rootError)
+      local ph = getPrepareHost()
+      if ph then ph:showFailure(rootError) end
+      return false
+    end
+    if why == "building" and OutdoorPerf.loadingScreen ~= false then
+      S.desktopBuilding = true
+      local g = love.graphics
+      local w, h = g.getDimensions()
+      local screen = S.desktopLoading
+      if not screen then screen = V.require("render/PrepareScreen").new(); S.desktopLoading = screen end
+      local c = screen:canvas(w, h, { phase = "building", done = 0, total = 0, frac = 0 }, clock())
+      g.push("all"); g.origin(); g.setShader(); g.setScissor(); g.setStencilTest(); g.setDepthMode()
+      g.setColorMask(true, true, true, true); g.setWireframe(false); g.setBlendMode("alpha"); g.setColor(1, 1, 1, 1); g.draw(c); g.pop()
+      return true
+    end
     if why ~= S.lastPrepareReason then
       S.lastPrepareReason = why
       log("3D view waiting: " .. tostring(why))
@@ -1256,7 +1382,37 @@ local function drawDesktop(ctx, battle3d)
 end
 
 -- ------------------------------------------------------------ render.compose
+-- Optional intro scene shares this host's existing XR session.
+local function immersiveIntroScene()
+  if not S.bootEnabled or not S.voxelOn or S.failed then return nil end
+  local game = currentGame()
+  local boot = game and game.boot
+  -- The menu can precede preparation; selecting an action gives loading ownership.
+  local preparing = bootPrepare and bootPrepare.selected ~= nil and not bootPrepare.done
+  local pending = boot and (boot.fadeThen == "new_game" or boot.fadeThen == "continue")
+  if preparing or pending then return nil end
+  local function resolve(id)
+    local h = type(mod.find) == "function" and mod.find(id)
+    local scene = h and h.exports and h.exports.scene
+    if type(scene) ~= "table" or type(scene.active) ~= "function"
+        or type(scene.drawEyes) ~= "function" or type(scene.drawDesktop) ~= "function" then return nil end
+    local ok, active = pcall(scene.active)
+    return ok and active == true and scene or nil
+  end
+  local title = resolve("firered_vr_title")
+  if title then return title end
+  if S.preintroReady ~= true then return nil end -- preparation barrier owns onboarding until complete
+  return resolve("gen3_immersive_intro")
+end
+
 local function onCompose(ctx)
+  -- Loading alone bypasses native-artwork scaling. Keep the same 960x640
+  -- canvas sharp in the final native panel, before intro or Android routing.
+  if bootPrepare and bootPrepare:composeCurrent(currentGame(),
+      ctx.ww or love.graphics.getWidth(), ctx.wh or love.graphics.getHeight(), S.frame) then return true end
+  local introScene = not S.android and immersiveIntroScene()
+  if introScene and introScene.drawDesktop(ctx) == true then return true end
+
   S.composeFrame = S.frame
   S.worldActive = ctx.worldActive == true
   if S.android then
@@ -1276,7 +1432,7 @@ local function onCompose(ctx)
   end
   -- W6: a battle (and its transition) stays in 3D while the voxel view is on
   local battle3d = battleFrame(R)
-  if not (S.voxelOn and not S.failed
+  if not (S.voxelOn and (not S.failed or (prepareHost and prepareHost.failure))
       and (battle3d or (ctx.worldActive and fieldPhase(currentGame())))) then
     return false
   end
@@ -1424,6 +1580,12 @@ local function loadingStep(r, game, dt, want3d, battle3d, hard)
   local due, ready = 0, false
   local okD, d = pcall(r.scene.buildsDue, r.scene, pl and { x = pl.x, z = pl.z } or nil, r.view.farCells or 60)
   if okD then due = d else due = 0 end
+  local rootError = r.scene:rootFailure()
+  if rootError and not S.failed then
+    fail("scene", rootError)
+    local ph = getPrepareHost()
+    if ph then ph:showFailure(rootError) end
+  end
   ready = r.scene:ready() == true
   o.dt, o.enabled, o.failed, o.battle = dt, true, S.failed ~= nil, battle3d == true
   o.menu, o.phase, o.active = loadingMenuOpen() == true, game and game.phase or nil, want3d == true -- Lab 60: a Fade is not a menu here
@@ -1471,11 +1633,31 @@ end
 local function questFrame(frame)
   if not S.bootEnabled then return end
   local game = currentGame()
+  if game and game.phase == "boot" and S.preintroReady ~= true and not immersiveIntroScene() then
+    if S.titleXRScene then
+      S.titleXRScene.updateXR(nil, nil, 0, { epoch = S.titleXREpoch, frame = frame, unavailable = true })
+      S.titleXRScene = nil
+    end
+    -- A title may have started XR before loading; keep submitting its native panel.
+    if R and R.xr.started then
+      local controls = R.xr:frame({ wantWorld = false, wantPanel = true, panelFollow = true,
+        panelCanvas = function()
+          if bootPrepare and bootPrepare.selected and not bootPrepare.done and bootPrepare.lastCanvas then
+            return bootPrepare.lastCanvas
+          end
+          return R.panel:quadCanvas(frame, Mods.XRSession.QUAD_W, Mods.XRSession.QUAD_H)
+        end })
+      R.hostApi.lastControls = controls
+      R.input:apply(controls, { menuOpen = true, faceLook = false, battleWalk = false, suppress = {} })
+      if not R.xr.started then R.hostApi:notifySessionStopped("session-lost"); R.hostApi.lossReported = true end
+    end
+    return
+  end
   local r = ensureRenderer()
   if frame % OPTION_PUSH == 0 then pushAllocTrim(); pushWeather(); pushCatchBeam(); logSpeed58() end -- Lab 51 / Lab 55 / Lab 50: mods that loaded after us
   applyTurning()
   if not r.xr.started then
-    if S.xrGaveUp or not fieldPhase(game) then return end
+    if S.xrGaveUp or not (immersiveIntroScene() or fieldPhase(game)) then return end
     local t = clock()
     if t < (S.xrNextTry or 0) then return end
     -- once XR.start runs, the native launcher may already have released its
@@ -1498,14 +1680,64 @@ local function questFrame(frame)
       return
     end
     S.xrTries, S.xrNextTry = 0, 0
+    S.titleXREpoch = (S.titleXREpoch or 0) + 1
     r.hostApi:notifySessionStarted(r.xr.refreshRate) -- W4
     if r.battle then r.battle:notifyReset("session-started") end -- W6: re-pin (CRITIQUE #20)
+  end
+  local introScene = immersiveIntroScene()
+  if introScene then
+    love.graphics.setCanvas()
+    -- This is an intro frame, not an overworld/gear frame.
+    r.hostApi:setWorldActive(false, "immersive-intro")
+    r.hostApi.field, r.hostApi.battle, r.hostApi.menuOpen = false, false, true
+    local titleInputOwned, titleUpdated = false, false
+    local sceneDt = dtNow()
+    local sceneContext = { epoch = S.titleXREpoch, frame = frame }
+    local controls, views, world, reason = r.xr:frame({
+      wantWorld = true, wantPanel = false,
+      renderEyes = function(v)
+        if type(introScene.updateXR) == "function" then
+          S.titleXRScene = introScene
+          titleUpdated = true
+          titleInputOwned = introScene.updateXR(v, r.xr.lastControls, sceneDt, sceneContext) == true
+        end
+        return introScene.drawEyes(v)
+      end,
+      panelCanvas = function()
+        return r.panel:quadCanvas(frame, Mods.XRSession.QUAD_W, Mods.XRSession.QUAD_H)
+      end,
+    })
+    r.hostApi.lastControls = controls
+    if not r.xr.started then
+      local status = type(views) == "string" and views or reason or "session-lost"
+      r.hostApi:notifySessionStopped(status)
+      r.hostApi.lossReported = true
+    end
+    if not titleUpdated and type(introScene.updateXR) == "function" then
+      introScene.updateXR(nil, nil, 0, { epoch = S.titleXREpoch, frame = frame, unavailable = true })
+    end
+    -- Portal intent owns menu actions while tracked; native title/naming keep menu mapping.
+    local actions = {}
+    if titleInputOwned then
+      r.input:releaseAll()
+    else
+      actions = r.input:apply(controls, {
+        menuOpen = true, faceLook = false, battleWalk = false, suppress = {},
+      })
+    end
+    if actions.toggle then
+      S.voxelOn = not S.voxelOn
+      if not S.voxelOn then r.hostApi:invalidateNow("toggle-off") end
+    end
+    if type(introScene.afterFrame) == "function" then introScene.afterFrame(controls) end
+    return
   end
   -- LOVE's belief between passes is "screen bound"; the host blits end with
   -- framebuffer 0 bound, so make the two agree before the XR frame.
   love.graphics.setCanvas()
   local dt = dtNow()
-  if not cloudWarm.done then cloudPrewarm(r, frame, S.loading ~= nil and S.loading.holding == true) end -- Lab 60
+  -- First-use cloud work waits until a loading panel has already been submitted.
+  if not cloudWarm.done and (S.preparationPresented or (OutdoorPerf.loadingScreen == false and OutdoorPerf.precacheFirstLoad == false)) then cloudPrewarm(r, frame, false) end
   local field = S.composeFrame == frame and S.worldActive and fieldPhase(game)
   -- W6: battles (and their transition) stay 3D while the voxel view is on;
   -- only the player's own toggle/option shows the flat game
@@ -1523,18 +1755,23 @@ local function questFrame(frame)
   -- Lab 59 PRECACHE ON FIRST LOAD: while the Preparing 3D world screen is up it owns the frame (no live pump, no
   -- Loading hold, panel instead of the world, no controls to the game). Nil when the switch is OFF / VRITK absent.
   local prepShow = false
-  if game and game.phase == "field" and prepareHost ~= false and OutdoorPerf.precacheFirstLoad ~= false then
+  if game and game.phase == "field" and prepareHost ~= false and (OutdoorPerf.precacheFirstLoad ~= false or (prepareHost and prepareHost.failure)) then
     local ph = getPrepareHost()
     if ph then
-      local okH, shown = pcall(ph.frame, ph, r, game, battle3d, menuOpen(), S.failed ~= nil)
+      local okH, shown = pcall(ph.frame, ph, r, game, battle3d, loadingMenuOpen(), S.failed ~= nil)
       prepShow = okH and shown == true
       if not okH then logOnce("prepare", "prepare step failed: " .. tostring(shown)) end
     end
     if prepShow then want3d = false end
   end
-  if game and game.phase == "field" and not prepShow then
+  if game and game.phase == "field" and not prepShow and not S.failed then
     local okP, errP, pumpDx, pumpDz = pcall(r.view.pump, r.view, game, { budgetMs = (want3d and not (S.loading and S.loading.holding)) and 6 or 12 })
-    if not okP then logOnce("pump", "map build pump failed: " .. tostring(errP)) end
+    if not okP then
+      logOnce("pump", "map build pump failed: " .. tostring(errP))
+      fail("pump", errP)
+      local ph = getPrepareHost()
+      if ph then ph:showFailure(errP) end
+    end
     noteRootShift(r, okP and pumpDx or nil, okP and pumpDz or nil) -- W4
     pumpHard = okP and errP == true and pumpDx == nil -- Lab 57: a hard re-root (boot, warp, Fly): no seamless shift
   end
@@ -1574,7 +1811,7 @@ local function questFrame(frame)
     collector = collector,
     wantWorld = want3d,
     wantPanel = not want3d,
-    panelFollow = holding, -- Lab 60: the Loading panel follows the head like the comfortable panel (XRSession)
+    panelFollow = holding or prepShow, -- Lab 60: the Loading panel follows the head like the comfortable panel (XRSession)
     mr = mr, -- PORTAL_MR P1
     renderEyes = function(v)
       renderStart = clock()
@@ -1637,6 +1874,10 @@ local function questFrame(frame)
       return out
     end,
     panelCanvas = function()
+      if prepareHost and prepareHost.failure then
+        local c = prepareHost:canvas(Mods.XRSession.QUAD_W, Mods.XRSession.QUAD_H)
+        if c then return c end
+      end
       -- W6: never the flat battle frame; black on the rare failed 3D frame
       if battle3d and r.battle then
         return r.battle:blankCanvas(Mods.XRSession.QUAD_W, Mods.XRSession.QUAD_H)
@@ -1644,7 +1885,7 @@ local function questFrame(frame)
       -- Lab 59: the Preparing 3D world screen replaces the flat game while the precache runs
       if prepShow and prepareHost then
         local pcv = prepareHost:canvas(Mods.XRSession.QUAD_W, Mods.XRSession.QUAD_H)
-        if pcv then return pcv end
+        if pcv then S.prepareCanvasFrame = frame; return pcv end
       end
       -- Lab 57 LOADING SCREEN: the black Loading canvas replaces the flat game while the hold is on or the root is building
       if VoxelLoading and OutdoorPerf.loadingScreen ~= false and vritk:active() and S.loading
@@ -1665,6 +1906,10 @@ local function questFrame(frame)
   -- Recovered here rather than at the source: XRSession:frame's return
   -- shape must not change (other callers/tests rely on it exactly as is).
   local xrStatus = (world == nil and type(views) == "string") and views or nil
+  if not xrStatus and world == false and r.xr.panelSubmitted == true then
+    if prepShow and prepareHost and S.prepareCanvasFrame == frame then prepareHost:presentedFrame(); S.preparationPresented = true end
+    if S.loadShownFrame == frame then S.preparationPresented = true end
+  end
   if xrStatus then views = nil end -- never let a status string reach centerPose/hand code below
   S.slackWorld = world == true and r.xr.started == true -- Lab 51: SLACK and SKIP WINDOW PRESENT
   -- Lab 49: FLAT DRAW RATE may skip the next flat frame only after a frame
@@ -1798,6 +2043,16 @@ end
 
 mod.events:on("render.frame_drawn", function(payload)
   local frame = S.frame
+  -- If the native plane compositor failed, Game3 used its stock flat fallback
+  -- and never called render.compose. Repaint only the retained loading screen;
+  -- all cache work still waits until a later frame after this final paint.
+  local game = currentGame()
+  if payload and payload.kind == "game" and bootPrepare and bootPrepare:needsComposite(game,frame) then
+    local state = graphicsState()
+    local ok,why = pcall(bootPrepare.composeCurrent,bootPrepare,game,
+      love.graphics.getWidth(),love.graphics.getHeight(),frame)
+    if not ok then unwind(state); fail("boot-compose",why) end
+  end
   S.frame = S.frame + 1
   if not S.android then return end
   S.flatWorld = false -- Lab 49: set again by questFrame only on a shown 3D field frame
@@ -1879,7 +2134,9 @@ end)
 mod.events:on("mod.options_changed", function(p)
   if type(p) ~= "table" or p.mod ~= mod.id then return end
   local ok, err = pcall(function()
-    if p.key == "fr_grass_shape" and R then
+    if p.key == "mouse_keyboard" then
+      mouseStep()
+    elseif p.key == "fr_grass_shape" and R then
       R.scene:setRetroShape(p.value)
     elseif p.key == "voxel_view" then
       S.voxelOn = p.value ~= false
@@ -1954,10 +2211,26 @@ mod.events:on("map.entered", function(payload)
 end)
 
 -- Desktop hotkeys: F7 voxel view, F8 camera, F9 stereo preview.
+local mouseToggleHeld = false
 mod.hooks:wrap("input.key", function(nextFn, game, ev)
+  if S.android then return nextFn() end
+  if ev and ev.key == "f6" then
+    if ev.phase == "released" then mouseToggleHeld = false end
+    if ev.phase == "pressed" and not mouseToggleHeld then
+      mouseToggleHeld = true
+      local enabled = opt("mouse_keyboard") ~= true
+      local ok = VrControls and VrControls.write({id = mod.id}, game, "mouse_keyboard", enabled)
+      if not ok then log("Change MOUSE & KEYBOARD in the Mods options") end
+      mouseStep()
+    end
+    return
+  end
+  mouseStep()
+  if mouseControls:key(ev) then return end
   if ev and ev.phase == "pressed" and not S.android then
     if ev.key == "f7" then
       S.voxelOn = not S.voxelOn
+      mouseStep()
       log("voxel view " .. (S.voxelOn and "ON" or "OFF"))
       return
     elseif ev.key == "f8" then
@@ -2088,3 +2361,4 @@ do
  local ok,why=pcall(function()return V.require('compat/LegacyBridge').start(V)end)
  if not ok then logOnce('compat-start','compatibility startup failed: '..tostring(why))end
 end
+

@@ -29,7 +29,7 @@ local M = {}
 
 M.ID = "wilds_of_hoenn"
 M.PIN = "1.5.0" -- legacy public pin
-M.SUPPORTED_VERSIONS = { ["1.5.0"] = true, ["1.7.1"] = true }
+M.SUPPORTED_VERSIONS = { ["1.5.0"] = true, ["1.7.1"] = true, ["1.10.1"] = true }
 M.LAYOUT = "frlg"
 M.PROVIDER_ID = "wilds_of_hoenn"
 M.FOLLOWER_KEY = "follower:1"
@@ -67,6 +67,7 @@ function M.new(deps)
     out = {}, list = {}, frames = 0, cards = 0, ghosts = 0,
   }
   A.optionMods[M.ID] = true
+  A.ambient = deps.ambient and deps.ambient.new() or nil
   local FST = {} -- vrFollowerState scratch
   local function handle() return deps.find(M.ID) end
   local function exports()
@@ -278,7 +279,7 @@ function M.new(deps)
     for i = 1, #order do
       if wilds >= M.MAX_WILD_CARDS then break end
       local e = entities[order[i]]
-      if e and drawable(e) and not (GI and GI.pending(e)) then
+      if e and drawable(e) and not (e.fx and (e.fx.mode == "swoop" or e.fx.mode == "swim")) and not (GI and GI.pending(e)) then
         local key = self:key(e)
         if not self.hidden[key] then
           local r = e.renderer
@@ -313,6 +314,7 @@ function M.new(deps)
       end
     end
     self.cards = n
+    if self.ambient and ex.version == "1.10.1" then self.ambient:append(out, ex, m, self.frames) end
     return out
   end
 
@@ -395,7 +397,7 @@ function M.new(deps)
       local p = FST.renderer:vrSnapshotInto(SNAP, FST.x or 0, FST.y or 0, 0, 0, facing or FST.facing, 0, false)
       local img, u0, v0, u1, v1, w, h, bottom = finish(CI, p, nil)
       if not img then return nil, "native pose unavailable" end
-      return img, u0, v0, u1, v1, w, h, false, bottom
+      return img, u0, v0, u1, v1, w, h, false, bottom, CI.liftPx
     end
     local hd = A.handles[key]
     local e = hd and hd.entity
@@ -517,6 +519,7 @@ function M.new(deps)
   end
 
   function A:deactivate()
+    if self.ambient then self.ambient:close() end
     local actors = self.registeredActors
     if actors and type(actors.unregisterProvider) == "function" then pcall(actors.unregisterProvider, M.PROVIDER_ID) end
     self.registeredActors = nil

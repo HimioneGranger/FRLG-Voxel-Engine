@@ -1,27 +1,12 @@
--- FRLG_VOXEL (W6, battle phase P-B1): the battle cutaway.
---
--- World geometry between the seat and the battlers (trees, roofs, walls the
--- heightfield sight test cannot see) and around a synthetic stage is cut
--- away instead of rejecting the spot (user rule 2026-09-28). The cut is done
--- in the terrain shaders, only while a battle is staged:
---   * variants of render/Shaders.lua's OPAQUE and CUTOUT are assembled from
---     W2's own literals at three anchors (a clip-space varying, the cut
---     uniforms, and a discard test at the top of effect()); the everyday
---     field shaders are untouched (no discard added to OPAQUE, so mobile
---     early-z is kept outside battles);
---   * per eye, render/View.lua's scene draw uses them through the
---     Shaders.override hook (INTEGRATION_PATCH.md, Shaders.lua section);
---   * a fragment is discarded when it is above the arena floor AND either
---     nearer than NEAR metres to the eye, or inside a battler group's screen
---     rectangle and nearer than that group, or (round 2) inside one of up to
---     OCC occluder volumes' screen rectangle and depth slab: the trees,
---     buildings and clutter BattleOccluders picked between the seat and the
---     Pokemon (the mesher's tree units and building boxes).
--- If an anchor is missing (the shaders changed) or a variant fails to
--- compile, the cut is off (logged once) and battles still render in 3D.
--- GLES: no default-precision change; highp per variable only (memory: LOVE
--- GLES shader precision). The assembled text is checked offline by the ES
--- gate through w6/es-gate (see w6/REPORT.md).
+-- FRLG_VOXEL battle-only cutaway, anchored in world cells.
+-- The prepared common eye, selected occluder bounds and battler card bounds
+-- are shared by both eyes. Head rotation never changes which world fragments
+-- are removed. Physical movement updates the common eye on the next prepare.
+-- Near clearing is a metre-sized sphere; sight clearing is a world ray/AABB
+-- corridor ending before the battlers. Selected volumes clear only themselves.
+-- Synthetic stages additionally clear their existing stage world volume.
+-- The floor guard and ordinary field shaders remain unchanged.
+-- Missing shader anchors/common eye fail closed to the regular world draw.
 local V = ...
 local Shaders = V.require("render/Shaders")
 local TreeView = V.require("render/FrlgTreeView")
@@ -31,28 +16,55 @@ BattleCut.__index = BattleCut
 
 BattleCut.ANCHOR_CLIP = "highp vec4 p = u_mvp * vertex_position;"
 BattleCut.ANCHOR_EFFECT = "vec4 effect(vec4 color, Image tex, vec2 tc, vec2 sc)\n{"
-BattleCut.VARYING = "varying LOVE_HIGHP_OR_MEDIUMP vec3 v_cut;\n"
+BattleCut.VARYING = "varying LOVE_HIGHP_OR_MEDIUMP vec3 v_cutWorld;\nuniform highp vec3 u_cutOrigin;\n"
 BattleCut.OCC = 8
 BattleCut.UNIFORMS = [[
-uniform highp vec4 u_cutA;
-uniform highp vec4 u_cutB;
+uniform highp vec4 u_cutEye;
+uniform highp vec4 u_cutA0;
+uniform highp vec4 u_cutA1;
+uniform highp vec4 u_cutB0;
+uniform highp vec4 u_cutB1;
 uniform highp vec4 u_cutD;
 uniform mediump float u_cutOn;
 uniform highp vec4 u_occR[8];
 uniform highp vec4 u_occW[8];
+// World ray/AABB entry. A zero direction never divides or invents a hit.
+highp float cutEntry(highp vec3 delta, highp vec3 lo, highp vec3 hi) {
+  highp float enter = 0.0;
+  highp float leave = 1000000.0;
+  for (int axis = 0; axis < 3; axis++) {
+    highp float d = delta[axis];
+    highp float e = u_cutEye[axis];
+    if (abs(d) < 0.00001) {
+      if (e < lo[axis] || e > hi[axis]) return -1.0;
+    } else {
+      highp float a = (lo[axis] - e) / d;
+      highp float b = (hi[axis] - e) / d;
+      enter = max(enter, min(a, b));
+      leave = min(leave, max(a, b));
+    }
+  }
+  return leave >= enter ? enter : -1.0;
+}
+bool cutInside(highp vec3 p, highp vec4 lo, highp vec4 hi) {
+  return lo.w > 0.5 && all(greaterThanEqual(p, lo.xyz)) && all(lessThanEqual(p, hi.xyz));
+}
+bool cutCorridor(highp vec3 delta, highp float distanceToEye, highp vec4 lo, highp vec4 hi) {
+  if (lo.w < 0.5) return false;
+  highp float entry = cutEntry(delta, lo.xyz, hi.xyz);
+  return entry > 0.0 && distanceToEye < hi.w;
+}
 ]]
 BattleCut.TEST = [[
   if (u_cutOn > 0.5 && v_y > u_cutD.w) {
-    highp float cw = max(v_cut.z, 0.0001);
-    highp vec2 ndc = v_cut.xy / cw;
-    if (cw < u_cutD.z) discard;
-    if (cw < u_cutD.x && ndc.x > u_cutA.x && ndc.x < u_cutA.z && ndc.y > u_cutA.y && ndc.y < u_cutA.w) discard;
-    if (cw < u_cutD.y && ndc.x > u_cutB.x && ndc.x < u_cutB.z && ndc.y > u_cutB.y && ndc.y < u_cutB.w) discard;
+    highp vec3 delta = v_cutWorld - u_cutEye.xyz;
+    highp float distanceToEye = length(delta);
+    if (distanceToEye < u_cutD.z) discard;
+    if (cutCorridor(delta, distanceToEye, u_cutA0, u_cutA1)) discard;
+    if (u_cutD.y < 0.5 && cutCorridor(delta, distanceToEye, u_cutB0, u_cutB1)) discard;
+    if (u_cutD.y > 0.5 && cutInside(v_cutWorld, u_cutB0, u_cutB1)) discard;
     for (int i = 0; i < 8; i++) {
-      highp vec4 orr = u_occR[i];
-      highp vec4 ow = u_occW[i];
-      if (cw > ow.x && cw < ow.y && v_y > ow.z && v_y < ow.w
-          && ndc.x > orr.x && ndc.x < orr.z && ndc.y > orr.y && ndc.y < orr.w) discard;
+      if (cutInside(v_cutWorld, u_occR[i], u_occW[i])) discard;
     }
   }
 ]]
@@ -63,7 +75,10 @@ BattleCut.DEPTH_MARGIN_M = 0.4  -- cut stops this far in front of a battler grou
 BattleCut.NDC_MARGIN = 0.03
 BattleCut.FLOOR_ABOVE = 0.12    -- cells above the arena floor where cutting starts
 BattleCut.OCC_MARGIN_M = 0.15   -- depth slab margin around an occluder
-BattleCut.NEAR_W = 0.05 -- shared near-eye clipping guard
+BattleCut.NEAR_W = 0.05 -- legacy projection diagnostics only
+BattleCut.METRES_PER_CELL = 1.6 -- Camera.METRES_PER_CELL, battle life size
+BattleCut.STEREO_MARGIN_M = 0.08 -- base shared-eye target edge allowance
+BattleCut.HALF_IPD_M = 0.04 -- covers up to80mm physical eye separation
 BattleCut.OCC_Y_MARGIN = 0.05   -- height margin around an occluder (cells)
 
 local function findOnce(s, pat)
@@ -77,12 +92,12 @@ end
 -- Returns the source, or nil and a reason.
 function BattleCut.assemble(src)
   if type(src) ~= "string" then return nil, "no source" end
-  if src:find("v_cut", 1, true) then return nil, "already has a cut" end
+  if src:find("v_cutWorld", 1, true) then return nil, "already has a cut" end
   local a = findOnce(src, BattleCut.ANCHOR_CLIP)
   local b = findOnce(src, BattleCut.ANCHOR_EFFECT)
   if not (a and b) then return nil, "shader anchors not found (Shaders.lua changed?)" end
   if not src:find("varying mediump float v_y;", 1, true) then return nil, "v_y varying not found" end
-  local out = src:sub(1, a - 1) .. BattleCut.ANCHOR_CLIP .. "\n  v_cut = p.xyw;"
+  local out = src:sub(1, a - 1) .. BattleCut.ANCHOR_CLIP .. "\n  v_cutWorld = vertex_position.xyz + u_cutOrigin;"
     .. src:sub(a + #BattleCut.ANCHOR_CLIP)
   local b2 = out:find(BattleCut.ANCHOR_EFFECT, 1, true)
   out = out:sub(1, b2 - 1) .. BattleCut.UNIFORMS .. BattleCut.ANCHOR_EFFECT .. "\n" .. BattleCut.TEST
@@ -152,81 +167,68 @@ function BattleCut.bounds(vp, points)
   return { x0, y0, x1, y1 }, wMin, wMax
 end
 
-local NONE = { 2, 2, -2, -2 } -- an empty rectangle: nothing is inside it
-
--- Pure: the uniforms for one eye. groups = { own = {points}, foe = {points} }
--- (card corners, world cells), or synth = {points} for a synthetic stage;
--- floorY = arena floor (cells). Returns { a, b, d } (vec4 each).
-function BattleCut.uniforms(vp, spec)
-  local m = BattleCut.NDC_MARGIN
-  local dm = BattleCut.DEPTH_MARGIN_M
-  local floorY = (spec.floorY or 0) + BattleCut.FLOOR_ABOVE
-  local function grow(r) return { r[1] - m, r[2] - m, r[3] + m, r[4] + m } end
-  if spec.synth then
-    local r, _, wMax = BattleCut.bounds(vp, spec.synth)
-    return {
-      a = r and grow(r) or NONE, b = NONE,
-      d = { r and (wMax + dm) or 0, 0, BattleCut.NEAR_SYNTH_M, floorY },
-      occR = BattleCut.occRects(vp, spec.occ),
-    }
-  end
-  local ra, wa = BattleCut.bounds(vp, spec.own or {})
-  local rb, wb = BattleCut.bounds(vp, spec.foe or {})
-  return {
-    a = ra and grow(ra) or NONE, b = rb and grow(rb) or NONE,
-    d = { ra and math.max(0, wa - dm) or 0, rb and math.max(0, wb - dm) or 0, BattleCut.NEAR_M, floorY },
-    occR = BattleCut.occRects(vp, spec.occ),
-  }
+-- The cut geometry is prepared in root-map cells around ONE common eye.
+-- Eye VP remains a caller argument for compatibility, never a mask input.
+local ZERO = { 0, 0, 0, 0 }
+local function worldBounds(points, pad, ypad)
+  if not points or #points == 0 then return ZERO, ZERO end
+  local lo, hi = {math.huge,math.huge,math.huge,1}, {-math.huge,-math.huge,-math.huge,1}
+  for _,p in ipairs(points)do for i=1,3 do lo[i]=math.min(lo[i],p[i]);hi[i]=math.max(hi[i],p[i])end end
+  for i=1,3 do local m=i==2 and (ypad or pad)or pad;lo[i]=lo[i]-m;hi[i]=hi[i]+m end
+  return lo,hi
 end
-
-local NONE_W = { 0, 0, 0, 0 }
--- Pure: per-occluder cut rectangles and depth slabs for one eye. occ = list
--- of corner lists (8 world points each). Returns { rects = {vec4 x OCC},
--- slabs = {vec4 x OCC}: near w, far w, lowest y, highest y } (unused slots
--- never match). Round 3: the height range keeps a cut to the volume itself
--- (tall grass at the seat: the ground under it stays).
-function BattleCut.occRects(vp, occ)
-  local rects, slabs = {}, {}
-  local m, om = BattleCut.NDC_MARGIN, BattleCut.OCC_MARGIN_M
-  for i = 1, BattleCut.OCC do
-    local pts = occ and occ[i]
-    local r, wMin, wMax
-    if pts then r, wMin, wMax = BattleCut.bounds(vp, pts) end
-    if r then
-      -- tree fix: a volume with corners at / behind the eye (a tree right next to the player) has no finite screen
-      -- rectangle; the in-front corners alone gave a partial one and the tree was cut to a mosaic. It covers the
-      -- screen from the eye out to its far corner instead.
-      for _, q in ipairs(pts) do
-        local _, _, cw = project(vp, q[1], q[2], q[3])
-        if cw <= BattleCut.NEAR_W then
-          r, wMin = { -2, -2, 2, 2 }, 0
-          break
-        end
-      end
-      local y0, y1 = math.huge, -math.huge
-      for _, q in ipairs(pts) do
-        if q[2] < y0 then y0 = q[2] end
-        if q[2] > y1 then y1 = q[2] end
-      end
-      rects[i] = { r[1] - m, r[2] - m, r[3] + m, r[4] + m }
-      slabs[i] = { math.max(0, wMin - om), wMax + om, y0 - BattleCut.OCC_Y_MARGIN, y1 + BattleCut.OCC_Y_MARGIN }
-    else
-      rects[i], slabs[i] = NONE, NONE_W
-    end
+BattleCut.worldBounds=worldBounds
+-- A fixed source aperture covers either physical eye's sight line outside
+-- the near sphere. Expand only angular bounds; the stopping distance uses
+-- the original, unexpanded card bounds (no depth margin drift).
+local function targetBounds(points, eye, near)
+  local lo,hi=worldBounds(points,0)
+  if lo[4]<0.5 then return lo,hi end
+  local pos={eye.x,eye.y,eye.z};local far2,nearest2=0,0
+  for _,p in ipairs(points)do local d2=0;for j=1,3 do d2=d2+(p[j]-pos[j])^2 end;far2=math.max(far2,d2)end
+  for j=1,3 do local d=math.max(lo[j]-pos[j],0,pos[j]-hi[j]);nearest2=nearest2+d*d end
+  local m=BattleCut.METRES_PER_CELL
+  local pad=BattleCut.STEREO_MARGIN_M/m+BattleCut.HALF_IPD_M/m*math.max(0,math.sqrt(far2)/near-1)
+  for j=1,3 do lo[j]=lo[j]-pad;hi[j]=hi[j]+pad end
+  hi[4]=math.max(0,math.sqrt(nearest2)-BattleCut.DEPTH_MARGIN_M/m)
+  return lo,hi
+end
+function BattleCut.occRects(_, occ)
+  local lows, highs = {}, {}
+  for i=1,BattleCut.OCC do
+    lows[i],highs[i]=worldBounds(occ and occ[i],BattleCut.OCC_MARGIN_M/BattleCut.METRES_PER_CELL,BattleCut.OCC_Y_MARGIN)
   end
-  return { rects = rects, slabs = slabs }
+  return {rects=lows,slabs=highs}
+end
+function BattleCut.uniforms(_, spec)
+  local eye=spec.eye
+  if not(eye and type(eye.x)=='number'and type(eye.y)=='number'and type(eye.z)=='number')then return nil,'missing common battle eye'end
+  local m=BattleCut.METRES_PER_CELL
+  local pad=BattleCut.STEREO_MARGIN_M/m
+  local near=(spec.synth and BattleCut.NEAR_SYNTH_M or BattleCut.NEAR_M)/m
+  local a0,a1=targetBounds(spec.synth or spec.own,eye,near)
+  local b0,b1
+  if spec.synth then b0,b1=worldBounds(spec.synth,pad)else b0,b1=targetBounds(spec.foe,eye,near)end
+  return {a0=a0,a1=a1,b0=b0,b1=b1,eye={eye.x,eye.y,eye.z,1},
+    d={BattleCut.DEPTH_MARGIN_M/m,spec.synth and 1 or 0,near,
+      (spec.floorY or 0)+BattleCut.FLOOR_ABOVE},occR=BattleCut.occRects(nil,spec.occ)}
 end
 
 -- Per eye, around Scene:draw: returns true when the cut is active.
 function BattleCut:begin(env, spec)
-  if not spec then return false end
+  if not spec then self:finish(); return false end
   local v = self:shaders()
   if not v then return false end
   local u = BattleCut.uniforms(env.vp, spec)
+  if not u then self:finish(); return false end
   local occ = u.occR or BattleCut.occRects(env.vp, nil)
   for _, sh in pairs(v) do
-    Shaders.send(sh, "u_cutA", u.a)
-    Shaders.send(sh, "u_cutB", u.b)
+    Shaders.send(sh, "u_cutEye", u.eye)
+    Shaders.send(sh, "u_cutOrigin", {0,0,0})
+    Shaders.send(sh, "u_cutA0", u.a0)
+    Shaders.send(sh, "u_cutA1", u.a1)
+    Shaders.send(sh, "u_cutB0", u.b0)
+    Shaders.send(sh, "u_cutB1", u.b1)
     Shaders.send(sh, "u_cutD", u.d)
     Shaders.send(sh, "u_cutOn", 1)
     Shaders.send(sh, "u_occR", unpack(occ.rects))
@@ -240,6 +242,9 @@ function BattleCut:begin(env, spec)
 end
 
 function BattleCut:finish()
+  if self.active and self.variants then
+    for _,sh in pairs(self.variants)do Shaders.send(sh,"u_cutOn",0)end
+  end
   if self.active or Shaders.override then Shaders.override = nil end
   self.active = false
 end

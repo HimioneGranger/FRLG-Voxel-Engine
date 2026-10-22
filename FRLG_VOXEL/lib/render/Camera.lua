@@ -409,6 +409,7 @@ end
 -- Desktop mono camera pitch per mode.
 function Camera:monoPitch()
   if self.seat then return tonumber(self.seat.pitch) or -0.2 end -- W6: look at the arena
+  if self.mousePitch ~= nil and self.mode ~= "overview" then return self.mousePitch end
   if self.mode == "third" then return -0.72 end
   if self.mode == "overview" then return -self:overviewPitch() end
   return -0.12
