@@ -1242,6 +1242,11 @@
       "sha256": "5218ff410ca28527a98adaa542d807202d81333413eb866cfa1e25ecccbf5cda"
     },
     {
+      "path": "FRLG_VOXEL/lib/render/FrlgVoxelTrees.lua",
+      "bytes": 5779,
+      "sha256": "5afe48acc08b33b59f920a9c5959099c729695e3507e69e02ded58214f40abf5"
+    },
+    {
       "path": "FRLG_VOXEL/lib/render/Gen3StormGrade.lua",
       "bytes": 1511,
       "sha256": "1199f90ebf572ab83dc2fe8397f81209681f771007a968ba4ce358ea74e5feef"
@@ -1308,8 +1313,8 @@
     },
     {
       "path": "FRLG_VOXEL/lib/render/Scene.lua",
-      "bytes": 131938,
-      "sha256": "4bc2f01e8be67b0c6e0a1259dcd41715bde43cfa14f3cd179ab2f8a8fc384736"
+      "bytes": 133214,
+      "sha256": "5d106f2eacc3a08cb6cc3ac4ec538e29b1a6995f4ecd7bdaadbe5e9b2778b391"
     },
     {
       "path": "FRLG_VOXEL/lib/render/Sea.lua",
