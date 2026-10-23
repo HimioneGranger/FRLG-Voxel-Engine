@@ -299,6 +299,7 @@ local frlgOptionRows = mod.options:define({
   },
 })
 local RetroGrass = V.require("grass/RetroGrass")
+frlgOptionRows[#frlgOptionRows+1]={key="fr_trees",type="choice",label="VOXEL TREES",choices={{"SHEETS","sheet"},{"VOXEL","voxel"}},default="sheet",help="SHEETS: the flat tree cards. VOXEL: full 3D trees built from the game's art, 1 px near and 4 px far. Applies live; the maps around you rebuild."}
 frlgOptionRows[#frlgOptionRows+1]={key="fr_grass_shape",type="choice",label="GRASS SHAPE",choices={{"UPRIGHT","upright"},{"WIDE + LAYERED","layered"}},default="upright",help="Grass shape. Applies live; grass bends when you walk through it."}
 local grassRenderer
 local function opt(key)
@@ -796,6 +797,7 @@ local bootPrepare -- set after renderer construction helpers
 local function ensureRenderer()
   if R then return R end
   grassRenderer = RetroGrass.new({shape=opt("fr_grass_shape"),ground="native"})
+  V.require("render/FrlgVoxelTrees").setActive(opt("fr_trees") == "voxel")
   local source = Mods.WorldSource.new()
   -- Lab 57 SIGNS compat gate: lettered signs and their native-shape repairs exist only while VRITK (the
   -- VRITK_FRLG_HOST bridge) is installed AND active. Looked up through the mod registry on every map input,
@@ -2138,6 +2140,8 @@ mod.events:on("mod.options_changed", function(p)
       mouseStep()
     elseif p.key == "fr_grass_shape" and R then
       R.scene:setRetroShape(p.value)
+    elseif p.key == "fr_trees" and R then
+      R.scene:setVoxelTrees(p.value == "voxel")
     elseif p.key == "voxel_view" then
       S.voxelOn = p.value ~= false
     elseif p.key == "movement" then -- Lab 8

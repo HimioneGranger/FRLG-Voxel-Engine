@@ -1143,8 +1143,8 @@
     },
     {
       "path": "FRLG_VOXEL/lib/quest/VrControls.lua",
-      "bytes": 24572,
-      "sha256": "4916d2c01ff8b733c545add5f1f3b2db4ab5de9ddd97359a07e1b2394bacb93f"
+      "bytes": 24748,
+      "sha256": "c9fc81ce4a98c35d46b897ae79b8f41b6c3ffab0d990823d499027234a3c1060"
     },
     {
       "path": "FRLG_VOXEL/lib/quest/VritkGate.lua",
@@ -1363,8 +1363,8 @@
     },
     {
       "path": "FRLG_VOXEL/main.lua",
-      "bytes": 122190,
-      "sha256": "63327e4177f40a7bd3cb50e0b245a17b277851563dab7297034ab7a291a071a9"
+      "bytes": 122654,
+      "sha256": "ea2e1e259ec0a3d4ce20afafa58d9d13c1bbdcf87a29403f9c9e3f6f44b9b42f"
     },
     {
       "path": "FRLG_VOXEL/manifest.json",
