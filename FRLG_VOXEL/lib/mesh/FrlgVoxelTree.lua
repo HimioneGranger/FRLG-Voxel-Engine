@@ -12,8 +12,13 @@ M.GREEN_MARGIN=8
 M.TALL_GRASS_BEHAVIOR=0x02
 M.BACKDROP_SHARE=0.1
 M.TRUNK_EXTRA_PIXELS=4
+M.NEAR_VOXEL=1
+M.FAR_VOXEL=4
 M.CHANNEL_STEP=8
 M.HASH_MODULUS=2147483647
+
+M.enabled=false
+M.stampCache={}
 
 local floor,ceil,abs,sqrt,max,min=math.floor,math.ceil,math.abs,math.sqrt,math.max,math.min
 
@@ -453,6 +458,53 @@ function M.build(atlas,model,size,backdrop)
   table.sort(ringColours)
   return {under=lists.under,over=lists.over,quads=quads,tris=quads*2,pixels=grid.width,ring=ringColours,height=grid.height,
     trunk=grid.trunk}
+end
+
+local Context={};Context.__index=Context
+
+function M.context(input)
+  local models=M.models(input.atlas)
+  if #models==0 then return nil end
+  return setmetatable({input=input,models=models,trees={},stamps={}},Context)
+end
+
+local function placedStamp(stamp,scale)
+  local layers={}
+  for _,layer in ipairs({"under","over"}) do
+    local out={}
+    for i,v in ipairs(stamp[layer]) do out[i]={v[1]*scale,v[2]*scale,v[3]*scale,v[4],v[5],v[6],v[7],v[8],0,0,0,0,1} end
+    layers[layer]=out
+  end
+  return {under=layers.under,over=layers.over,tris=stamp.tris,radius=stamp.pixels*scale/2,height=stamp.height*scale}
+end
+
+function Context:stamp(model,size,scale)
+  local key=("%s@%d@%.4f"):format(model.name,size,scale)
+  local cached=M.stampCache[self.input.pair]
+  if not cached then cached={};M.stampCache[self.input.pair]=cached end
+  if not cached[key] then
+    self.backdrop=self.backdrop or M.backdrop(self.input,self.models)
+    cached[key]=placedStamp(M.build(self.input.atlas,model,size,self.backdrop),scale)
+  end
+  self.stamps[key]=cached[key]
+  return key
+end
+
+function Context:take(u,occ,foliage,lists)
+  local model=M.modelFor(self.models,u.cells)
+  local desc=model and foliage:_unit(u)
+  if not desc then return false end
+  for i,list in ipairs(lists) do
+    for k=#list,u.frVoxelStarts[i]+1,-1 do list[k]=nil end
+  end
+  local scale=2*occ.r/desc.w
+  self.trees[#self.trees+1]={x=occ.x,y=occ.y0,z=occ.z,near=self:stamp(model,M.NEAR_VOXEL,scale),
+    far=self:stamp(model,M.FAR_VOXEL,scale)}
+  return true
+end
+
+function Context:output()
+  return {pair=self.input.pair,stamps=self.stamps,trees=self.trees}
 end
 
 return M

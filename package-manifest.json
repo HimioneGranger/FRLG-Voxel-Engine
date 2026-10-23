@@ -783,8 +783,8 @@
     },
     {
       "path": "FRLG_VOXEL/lib/mesh/FrlgMesher.lua",
-      "bytes": 1950185,
-      "sha256": "f573b9b24deb99dbc2313a58d3fcdf9b035696d26bc0f3bd13159ce18495860f"
+      "bytes": 1950829,
+      "sha256": "2ef62d693d3b16ae2ec38baa17d0d5f3216a3e35602b0a23018842adf9482886"
     },
     {
       "path": "FRLG_VOXEL/lib/mesh/FrlgNativeFoliage.lua",
@@ -808,8 +808,8 @@
     },
     {
       "path": "FRLG_VOXEL/lib/mesh/FrlgVoxelTree.lua",
-      "bytes": 16378,
-      "sha256": "bff5b856826b42a658ef0e322e800b8cbfd57fa7432b6c4ffa44cd471136406e"
+      "bytes": 18110,
+      "sha256": "630e70833763c515041301a884fb47f62144020e4152fd7326add1cd5897c799"
     },
     {
       "path": "FRLG_VOXEL/lib/mesh/LaboratoryProfiles.lua",
