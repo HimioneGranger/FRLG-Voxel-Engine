@@ -1769,6 +1769,13 @@ local function floraContext(deps, env)
   return nil
 end
 
+function M.voxelTreeContext(deps,input)
+  if type(deps.require)~="function" then return nil end
+  local ok,VoxelTree=pcall(deps.require,"mesh/FrlgVoxelTree")
+  if not ok or type(VoxelTree)~="table" or not VoxelTree.enabled then return nil end
+  return VoxelTree.context(input)
+end
+
 local function nativeFoliageContext(deps,env)
   local module=deps.NativeFoliage or M.NativeFoliage
   if not module and type(deps.require)=="function" then module=deps.require("mesh/FrlgNativeFoliage") end
@@ -8504,6 +8511,7 @@ local native={cells={
     opaque=opaque,keyed=cutoutKeyed,cutoutKeyed=cutoutKeyed,over=cutoutOver,cutoutOver=cutoutOver,
     isBorder=isBorder,pair=input.pair,forest3=forest3,at=at,W=W,H=H,
     isForestCell=isForestCell,borderDist=borderDist}) or nil
+  IN.voxelTrees = IN.nativeFoliage and M.voxelTreeContext(deps,input) or nil
   -- Complete the two exact mixed UNDER tree units, using all original
   -- source layers. Cliff UNDER and building OVER retain independent owners.
   if IN.nativeFoliage then
@@ -16117,6 +16125,7 @@ local native={cells={
     local gy = -math.huge
     for _, c in ipairs(u.cells) do if c.hgt > gy then gy = c.hgt end end
     if IN.nativeFoliage and IN.nativeFoliage:canUnit(u) then
+      if IN.voxelTrees then u.frVoxelStarts={#cutoutKeyed,#opaque,#cutoutOver} end
       local northStart=u.nativeNorthSource and (#cutoutKeyed+1) or nil
       local handled,occ,trunk,n=IN.nativeFoliage:unit(u,gy)
       assert(handled,"validated native unit did not emit")
@@ -16141,6 +16150,7 @@ local native={cells={
         end
         n=(n or 0)+6;IN.nativeFoliage.stats.treeTris=IN.nativeFoliage.stats.treeTris+6
       end
+      if IN.voxelTrees and occ and IN.voxelTrees:take(u,occ,IN.nativeFoliage,{cutoutKeyed,opaque,cutoutOver}) then n=0 end
 
       if occ then treeOccluders[#treeOccluders+1]=occ end
       if occ and u.edge and not u.far then edgeUnits=edgeUnits+1 end
@@ -26827,6 +26837,7 @@ end
     shrubCards = grid.nativeShrubCards,
     shadowOpaque = grid.shrubShadowOpaque,
     treeOccluders = treeOccluders,
+    frVoxelTrees = IN.voxelTrees and IN.voxelTrees:output() or nil,
     bounds = { minX = minX, minY = minY, minZ = minZ, maxX = maxX, maxY = maxY, maxZ = maxZ },
     stats = {
       tris = tris, ms = ms, buildings = buildingCount, props = propCount,

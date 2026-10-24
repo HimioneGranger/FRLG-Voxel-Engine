@@ -23,6 +23,7 @@ local Perf = V.require("render/OutdoorPerf") -- Lab 55
 local Shaders = V.require("render/Shaders")
 local Shrubs = V.require("render/FrShrubView")
 local TreeView=V.require("render/FrlgTreeView")
+local VoxelTrees=V.require("render/FrlgVoxelTrees")
 local Light = V.require("render/Light")
 local Solar = V.require("render/SolarShadows")
 local Mip = V.require("render/Mip")
@@ -128,7 +129,7 @@ function Scene.new(opts)
   return setmetatable({
     source = opts.source,
     lighting=LightingRuntime.new(LightingPolicy.new(LightingConfig.policy)),
-    retroGrass=opts.retroGrass, inflight={},
+    retroGrass=opts.retroGrass, inflight={}, voxelTrees=VoxelTrees.new(),
     mesher = opts.mesher,          -- function(input) -> geom, meshName
     log = opts.log or print,
     cache = {},                    -- map id -> record
@@ -929,6 +930,7 @@ local function releaseRecord(rec)
     rec.signRuntime = nil
   end
   if rec.retroOwner then rec.retroOwner:releaseRecord(rec) end
+  if rec.frVoxelOwner then rec.frVoxelOwner:releaseRecord(rec) end
   rec.shellDraw = nil -- interiors-team (S2)
   rec.pcInfo = nil -- Lab 57: a record released before its cache write is dropped from the queue
   for _, key in ipairs({ "opaque", "under", "over", "keyed", "shell" }) do -- interiors-team (S2): + the room shell
@@ -1503,6 +1505,7 @@ function Scene:_build(key, input)
     for _,ch in ipairs(rec.retroChunks or {})do rec.grassTris=rec.grassTris+ch.tris end
     rec.tris=rec.baseTris+rec.grassTris;rec.grassBuildMs=(now()-tGrass)*1000
   end
+  if self.voxelTrees and geom.frVoxelTrees then rec.tris=rec.tris+self.voxelTrees:build(rec,geom.frVoxelTrees) end
   if self.lighting and not sunless(input) and not input.isBorder then
     rec.lightRecord=LightingBuild.build(Scene,self,geom,input,key,yieldPoint,function(light)
       rec.lightRecord=light;self.inflight[rec]=true;rec.buildOwner=self;rec.buildCoroutine=coroutine.running()
@@ -1529,6 +1532,7 @@ end
 -- builds live and, after a clean build, queues the record for an idle-frame
 -- write (PC:pump, from Scene:pump).
 local function pcLive(self)
+  if VoxelTrees.active() then return nil end
   local pc = self.precache
   if PCmod and pc and BuildPerf.worldCache ~= false and pc:enabled() then return pc end
   return nil
@@ -2231,6 +2235,28 @@ function Scene:setShadows(on)
   end
 end
 
+function Scene:setVoxelTrees(on)
+  if not VoxelTrees.setActive(on) then return end
+  local placedKeys={}
+  for _,p in ipairs(self.placed) do placedKeys[(p.border and "b:" or "m:")..p.key]=true end
+  for _,store in ipairs({{self.cache,"m:"},{self.borders,"b:"}}) do
+    for key,rec in pairs(store[1]) do
+      if not placedKeys[store[2]..key] then releaseRecord(rec);store[1][key]=nil end
+    end
+  end
+  for _,p in ipairs(self.placed) do
+    if not queued(self.queue,p.key) then
+      if p.border then
+        self.queue[#self.queue+1]=self:_borderJob()
+      else
+        local L=p.def and p.def.midLayout
+        self.queue[#self.queue+1]={key=p.key,id=p.id,ox=p.ox,oy=p.oy,w=L and L.width or 0,h=L and L.height or 0,
+          root=p.key==self.rootId}
+      end
+    end
+  end
+end
+
 function Scene:_queueRetroShape(rec,key,border)
   if not self.retroGrass or not rec or rec.failed or rec.empty or not rec.retroGrassCells
       or rec.retroShape==self.retroGrass.shape then return false end
@@ -2793,6 +2819,7 @@ function Scene:draw(env)
   drawLayer(self, cutout, "under", underTex, env, planes, counters, true)
   drawLayer(self, cutout, "over", overTex, env, planes, counters, true)
   drawLayer(self, cutout, "keyed", keyedTex, env, planes, counters, true)
+  if self.voxelTrees then self.voxelTrees:draw(self, env, planes, boxVisible, cutout, counters) end
   if SignRuntime then SignRuntime.draw(self, cutout, Shaders, env, planes, boxVisible, counters, bindSignMap) end -- Lab 57 SIGNS
   Shrubs.draw(self,Shaders,env,counters,bindSignMap)
   if self.retroGrass then
@@ -2833,6 +2860,7 @@ function Scene:release()
   if self.precache then pcall(self.precache.flush, self.precache) end -- Lab 57
   self.active=nil;self:_releaseInflight()
   if self.retroGrass then self.retroGrass:release() end
+  if self.voxelTrees then self.voxelTrees:release() end
   if self.lighting then self.lighting:release() end
   Solar.invalidate(self)
   Mip.release()
