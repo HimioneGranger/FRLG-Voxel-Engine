@@ -834,6 +834,33 @@ function M.battleVisuals()
   return ok and list or nil
 end
 
+-- Read-only send-out destination IDs for the ground aiming cue. Never a capture target.
+-- Keep the cue on the same opening lease / switch hold that accepts a party-ball throw.
+function M.sendOutTargets()
+  local ctx = installed
+  if not (ctx and ctx.claiming == true) then return nil end
+  local B = battleState(ctx)
+  if call(B, "isActive") ~= true then return nil end
+  local h = Switch and Switch.active()
+  if h then
+    if h.phase == "throw" and h.usable == true and not h.finished and not h.skip
+      and not h.fallback and not h.throwAt then return { h.id } end
+    return nil -- recall and an already accepted throw do not need a ground cue
+  end
+  local s = ctx.V.chooseYou and ctx.V.chooseYou.state
+  if not (isGen3(s) and s.phase == "waiting" and not s.preselected) then return nil end
+  local p = call(B, "openingPending")
+  if not (p and p.token == s.token) then return nil end
+  if p.double == true then
+    local ids = {}
+    for _, slot in ipairs(p.slots or {}) do
+      if not slot.released and not (s.rseThrows and s.rseThrows[slot.slot]) then ids[#ids+1] = slot.battler end
+    end
+    return ids
+  end
+  return { 0 }
+end
+
 -- belt-switch: the physical switch (status / skip for a tablet button) and the recall aim counters.
 M.beltSwitch = Switch
 M.recallAim = Aim

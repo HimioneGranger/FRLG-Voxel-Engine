@@ -9,14 +9,19 @@
 -- object while nothing visible changed. The canvas is repainted when the bar moves by at least one step, the map
 -- counter or the time bucket changes, or the phase / skip state changes, and then at most every REDRAW_S seconds
 -- (the strings are built only then).
+local V=...
+local Guide
+if type(V)=='table' and type(V.require)=='function' then
+  local ok,g=pcall(V.require,'quest/ControlGuide');if ok then Guide=g end
+end
 local S = {}
 S.__index = S
 
 S.REDRAW_S = 0.2
 S.BAR_STEPS = 400         -- the bar moves in 1/400 steps
 
-function S.new()
-  return setmetatable({ image = nil, drawn = false, kStep = -1, kDone = -1, kEta = -2, kPhase = "", kSkip = false,
+function S.new(opts)
+  return setmetatable({ guideEnabled=opts and opts.vr==true, image = nil, drawn = false, kStep = -1, kDone = -1, kEta = -2, kPhase = "", kSkip = false,
     kTotal = -1, lastDraw = -1e9, draws = 0, fonts = nil }, S)
 end
 
@@ -54,6 +59,9 @@ function S.title(prog)
 end
 
 local function paint(self, w, h, prog)
+  if self.guideEnabled and Guide then
+    return Guide.loading(w,h,prog,self.guideNow or 0,S.title(prog),etaText(etaBucket(prog.etaSec)))
+  end
   local g = love.graphics
   g.origin(); g.setShader(); g.setScissor(); g.setStencilTest(); g.setDepthMode(); g.setMeshCullMode("none")
   g.setColorMask(true, true, true, true); g.setWireframe(false); g.setBlendMode("alpha"); g.setColor(0, 0, 0, 1); g.rectangle("fill", 0, 0, w, h)
@@ -122,7 +130,10 @@ function S:canvas(w, h, prog, now)
   self.now = now
   local step = (prog.total or 0) > 0 and math.floor(math.min(1, math.max(0, prog.frac or 0)) * S.BAR_STEPS) or math.floor(now * 5)
   local eta = etaBucket(prog.etaSec)
-  local same = self.drawn and step == self.kStep and prog.done == self.kDone and eta == self.kEta
+  if self.guideEnabled and not self.guideStart then self.guideStart=now end
+  self.guideNow=now-(self.guideStart or now)
+  local page=self.guideEnabled and Guide and Guide.page(self.guideNow) or nil
+  local same = page==self.kGuidePage and self.drawn and step == self.kStep and prog.done == self.kDone and eta == self.kEta
     and prog.operation == self.kOperation and prog.phase == self.kPhase and (prog.skipping == true) == self.kSkip and prog.total == self.kTotal and prog.canSkip == self.kCanSkip
   if not same and (not self.drawn or now - self.lastDraw >= S.REDRAW_S) then
     g.push("all")
@@ -133,6 +144,7 @@ function S:canvas(w, h, prog, now)
     self.kStep, self.kDone, self.kEta, self.kPhase = step, prog.done, eta, prog.phase
     self.kOperation = prog.operation
     self.kSkip, self.kTotal, self.kCanSkip = prog.skipping == true, prog.total, prog.canSkip
+    self.kGuidePage=page
     self.lastDraw = now
     self.draws = self.draws + 1
   end

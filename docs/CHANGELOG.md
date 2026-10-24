@@ -1,3 +1,38 @@
+# Beta 7
+
+- One **Trees: Cards / Voxel / Voxel Low Res** choice. Low Res uses the existing
+  coarse native-art meshes nearby too: General7518 to498 triangles/tree and
+  Forest11456 to888. These are geometry counts, not measured FPS improvements.
+  Detailed meshes, placements and culling are preserved. The voxel modes switch
+  live without rebuilding map records; Cards retains its own geometry identity.
+- Exact vertex indexing reduces tree-template storage while preserving every
+  triangle, material and winding. Existing valid tree records remain reusable
+  through narrowly verified producer aliases.
+- Engine-side controls guide during preparation and from native Help, belt yaw
+  lock, optional throw assistance, a battle send-out destination cue for your
+  own Pokemon, and the original qualifying juggling-spin bonus/visuals.
+- Optional VRITK/Catch/Gear adapters for persistent held backpack items,
+  forgiving follower medicine with spray mist, physical TM/HM case and tablet
+  ports, berry pouch selection/feeding and existing happy cry/emote hooks.
+  These need the separately supplied supported gameplay mods and device tests.
+- Added battle prompts use native fonts/borders. Post-battle result text remains
+  visible in the world when the tablet is holstered.
+- Includes the lab3257 first-pass mainland Kanto horizon assets and lifecycle.
+  Coverage remains limited; Sevii, Saffron, Viridian Forest and Safari keep native
+  backgrounds. Full-region geography or headset acceptance is not claimed.
+
+Source, isolated renderer and controlled interaction checks pass. The new tree
+mode and interaction additions have not yet been tested together on a headset.
+The separately reported Steam Frame3255 missing party belt remains unresolved;
+this release does not claim to fix it or update the host/launcher/native bridge.
+
+This is the engine and internal adapters only. ROMs, saves, host, optional mods,
+custom title/Oak scene, tester APK/Steam bundle and embedded Gen5 sprite provider
+are not included. The external sprite-provider adapter, existing license,
+third-party notices and contributor history are retained.
+
+---
+
 # Beta 6
 
 Engine fixes from the tested FireRed lab 3255 packages:

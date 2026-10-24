@@ -114,6 +114,7 @@ local okMods, Mods = pcall(function()
     -- one seam in VR_INTERACTIONS_BACKPACK_LAB/main.lua (compat.install).
     Gen3ChooseYouCompat = V.require("compat/Gen3ChooseYouCompat"),
     Gen3BeltCompat = V.require("compat/Gen3BeltCompat"),
+    Gen3JuggleSpin = V.require("compat/Gen3JuggleSpin"),
   }
 end)
 if not okMods then
@@ -318,7 +319,9 @@ local function layerUpdate(ctx)
     pcall(Mods.QuestHandProps.place, handr, pivotPx, anchorLocal, scalePxPerM, rig.yaw or 0)
   end
 
-  return { pxFrame = pxFrame, records = records }
+  pcall(V.require('compat/Gen3NativeText').prepare)
+  local okSpin,spin=pcall(Mods.Gen3JuggleSpin.prepare,pxFrame)
+  return { pxFrame = pxFrame, records = records, spin=okSpin and spin or nil }
 end
 
 -- ALLOC TRIM: one payload table, refilled before each hands draw and cleared
@@ -347,6 +350,7 @@ local function layerDraw(record, eye)
   if not voxel.beginEye(vpPx, eyePosPx, eye.nativeFlash, eye.worldLighting) then return end
   pcall(Mods.QuestHandProps.draw)
   pcall(Mods.QuestStereoLayers.draw, record.records)
+  pcall(Mods.Gen3JuggleSpin.draw,record.spin)
   -- Hands are local interaction geometry, intentionally exempt from world darkness.
   voxel.flashExempt(true)
   if trim then
@@ -450,6 +454,7 @@ end)
 -- tick until then is cheap.
 mod.hooks:wrap("input.step", function(nextFn, game, dt)
   pcall(installSecondScreenBridge)
+  Mods.Gen3JuggleSpin.tick()
   if approach then pcall(approach.onTick, game) end -- Lab 58: one budgeted warm job per frame, scan every 15 ticks
   return nextFn(game, dt)
 end)
@@ -468,6 +473,9 @@ mod.hooks:wrap("core.quit_to_launcher", function(nextFn)
   if Mods.WildsLayersCompat then pcall(Mods.WildsLayersCompat.uninstall) end
   if Mods.WildsHostCompat then pcall(Mods.WildsHostCompat.uninstall) end
   pcall(Mods.Gen3ChooseYouCompat.uninstall)
+  pcall(V.require('compat/Gen3VrComfort').uninstall)
+  pcall(Mods.Gen3JuggleSpin.uninstall)
+  pcall(V.require('compat/Gen3NativeText').uninstall)
   pcall(Mods.Gen3BeltCompat.uninstall)
   pcall(Mods.Gen3DexScannerCompat.uninstall)
   if approach then pcall(approach.dispose) end
@@ -580,6 +588,8 @@ mod.exports.compat = {
     -- enabled also gates the belt's A claim (holding()), so a belt VRITK
     -- disables or stops running cannot keep A from the game (review defect 2)
     local okB, whyB = Mods.Gen3BeltCompat.install(vkV, { log = log, enabled = enabled })
+    V.require('compat/Gen3VrComfort').install(vkV,{enabled=enabled})
+    Mods.Gen3JuggleSpin.install(vkV,enabled)
     local okD, whyD = Mods.Gen3DexScannerCompat.installCamera(vkV)
     -- Lab 57 (SCANNER57 review): watchEdge= shows a silent fallback to the old ray in the log
     local okSt, st = pcall(Mods.Gen3DexScannerCompat.status)
@@ -590,6 +600,7 @@ mod.exports.compat = {
   end,
   chooseYou = Mods.Gen3ChooseYouCompat,
   belt = Mods.Gen3BeltCompat,
+  juggleSpin = Mods.Gen3JuggleSpin,
   dexScanner = Mods.Gen3DexScannerCompat,
 }
 -- COMPAT60 (user rule 2026-10-10: "all these changes need to go in a compat layer that turns on with VRITK installed"):

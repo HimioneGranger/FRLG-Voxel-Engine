@@ -198,7 +198,9 @@ end
 
 function H:_canvas(w, h)
   local s = self.screen
-  if not s then s = self.Screen.new(); self.screen = s end
+  local vrGuide=self.ctx.android==true or (type(self.ctx.vr)=='function' and self.ctx.vr()==true) or self.ctx.vr==true
+  if not s then s = self.Screen.new({vr=vrGuide}); self.screen = s end
+  s.guideEnabled=vrGuide
   local prog = self.failure and { phase = "failed", done = 0, total = 0, frac = 0 } or self.prep and self.prep:progress(self.prog) or { phase = "check", done = 0, total = 0, frac = 0 }
   prog.canSkip = not self.failure and (self.preintro or self.ctx.android == true) and self.prep ~= nil and self.prep:isActive()
   prog.continueHint = self.failure and ((self.preintro or self.ctx.android == true) and "Press B to continue with on-demand loading." or "Press Enter to continue with on-demand loading.") or nil

@@ -1,8 +1,8 @@
-# Beta 6 technical notes
+# Beta 7 technical notes
 
 This repository distributes the FRLG renderer and internal adapters. The host,
 ROM import, game simulation, platform services and optional gameplay mods remain
-separate. FireRed lab 3255 is the reference integration (engine 0.3.33, mod API 2,
+separate. FireRed lab3257 is the source baseline (engine 0.3.33, mod API 2,
 LÖVE graphics, plus OpenXR on Quest). The manifest's broad host version range
 does not establish compatibility with every host in that range.
 
@@ -39,15 +39,19 @@ The public package omits the lab's embedded Gen 5 sprite provider and its
 provider-specific notices. `ImportedSprites.lua` retains beta 4's external
 provider route; without a compatible separately installed provider and pack,
 it falls back to native battle artwork. The host's importer is not bundled.
-This is an explicit exception to the lab3255 source import, alongside the
+This is an explicit exception to the lab3257 source import, alongside the
 public beta version metadata; the full lab's imported-sprite workflow is not
 included. The existing project license and third-party notices are unchanged.
 
 ## Trees and preparation
 
-`VOXEL TREES` (`fr_trees`) defaults to `SHEETS`. Select `VOXEL` to use the
-native-art tree meshes. Near trees use finer geometry and distant trees use a
-coarser representation. Switching modes rebuilds the active nearby scene.
+`TREES` (`fr_trees`) has Cards (`sheet`), Voxel (`voxel`) and Voxel Low Res
+(`voxel_low`), defaulting to Cards. Voxel keeps near/far detail. Low Res draws
+the existing coarse stamp at every distance. Voxel-to-Low-Res changes only draw
+policy, with no map generation change; switching to/from Cards rebuilds nearby
+geometry. Retired separate low-detail settings migrate through the native
+option writer. Low mode does not remove resident detailed templates or promise
+faster precaching. No Quest2 FPS result has been measured.
 
 The current General and Forest forms refine the existing native leaf groups
 and lower surfaces. They are not a blanket replacement for every foliage family.
@@ -102,3 +106,19 @@ The existing [interim private-use license](../LICENSE.txt) applies to original
 project material; third-party rights retain their own terms. This remains a
 source-available beta, not the full open-source release. Preserve the
 [third-party notices](../THIRD_PARTY_NOTICES.md) and source attributions.
+
+## Beta 7 interaction validation
+
+Preparation guidance uses existing loading time; it adds no extra stage. The
+Help guide, belt lock, throw assistance, own send-out cue, juggle spin, physical
+medicine/TM/HM/berries and native battle text are engine-owned optional adapters.
+Their supported consumer mods remain separate. Controlled production-module
+tests and isolated GPU captures pass; physical controller feel, full native
+TM/HM UI transitions, end-to-end feeding and combined headset performance remain
+pending. No fix is claimed for the Steam Frame3255 missing belt report.
+
+The first-pass mainland horizon integration comes from the installed3257 source
+baseline and existing map-by-bearing/transition review. It does not establish
+complete regional geography or headset acceptance. The native source-map
+coordinates, eight original project horizon images and coverage exclusions
+remain as reviewed; no new horizon authoring is performed in this release.

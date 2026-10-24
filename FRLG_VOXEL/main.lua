@@ -88,6 +88,15 @@ V.require('compat/LegacyBridge').expose(V)
 
 -- ------------------------------------------------------------ options
 local frlgOptionRows = mod.options:define({
+  {key="battle_aim",type="toggle",label="BATTLE AIM CUE",default=true,help="Marks where your own Pokemon will appear while a battle opening or switch waits for your party-ball throw."},
+  {key="belt_locked",type="toggle",label="BELT REFERENCE LOCK",default=true,
+    help="Keep waist equipment facing recentered room forward while you look around. External equipment mounts retain their own anchors."},
+  {key="throw_strength",type="choice",label="THROW STRENGTH",default="assisted",
+    choices={{"NORMAL","normal"},{"ASSISTED","assisted"}},
+    help="ASSISTED adds a capped25% release boost for deliberate horizontal throws. Normal restores existing strength; drops and vertical juggling are unchanged."},
+
+  {key="contextual_horizons",type="toggle",label="KANTO HORIZONS",default=true,
+   help="Contextual distant scenery for the Kanto first-pass areas. Follows time and fog; raises TWS clouds only where these horizons are active. Sevii Islands are not included."},
   {
     key = "voxel_view", type = "toggle", label = "FRLG VOXEL VIEW", default = true,
     help = "3D voxel overworld. Quest: stereo VR (left stick click switches to the flat panel and back). PC: 3D preview (F7). OFF = flat view now; the VR session itself is only skipped from the next launch.",
@@ -299,7 +308,9 @@ local frlgOptionRows = mod.options:define({
   },
 })
 local RetroGrass = V.require("grass/RetroGrass")
-frlgOptionRows[#frlgOptionRows+1]={key="fr_trees",type="choice",label="VOXEL TREES",choices={{"SHEETS","sheet"},{"VOXEL","voxel"}},default="sheet",help="SHEETS: the flat tree cards. VOXEL: full 3D trees built from the game's art, 1 px near and 4 px far. Applies live; the maps around you rebuild."}
+frlgOptionRows[#frlgOptionRows+1]={key="fr_trees",type="choice",label="TREES",
+ choices={{"CARDS","sheet"},{"VOXEL","voxel"},{"VOXEL LOW RES","voxel_low"}},default="sheet",
+ help="CARDS: flat native-art trees. VOXEL: detailed 3D trees. VOXEL LOW RES: coarser 3D trees for slower systems. Changing between the two voxel modes applies immediately; changing to or from Cards rebuilds nearby maps."}
 frlgOptionRows[#frlgOptionRows+1]={key="fr_grass_shape",type="choice",label="GRASS SHAPE",choices={{"UPRIGHT","upright"},{"WIDE + LAYERED","layered"}},default="upright",help="Grass shape. Applies live; grass bends when you walk through it."}
 local grassRenderer
 local function opt(key)
@@ -592,6 +603,12 @@ end
 -- Lab 7: VR CONTROLS on the FireRed / Emerald OPTION screen (this file is Gen 3 only);
 -- taken out again by teardown().
 local vrRows
+local ControlsHelp=V.require('quest/ControlsHelp')
+local function installControlsHelp()
+ local help=engine('src.ui.game3.help_system')
+ if help then ControlsHelp.install(help,function()return R and R.xr and R.xr.started==true and mod.game and mod.game.phase~='boot' end,engine('src.core.game3.audio'))end
+end
+installControlsHelp()
 if VrControls then
   local Rows = engine("src.ui.game3.option_rows")
   if Rows then
@@ -786,7 +803,8 @@ local function getPrepareHost()
   prepareHost = false
   if okPH and type(PrepareHost) == "table" then
     local okN, h = pcall(PrepareHost.new, { mod = mod, log = log, V = V, Mods = Mods, OutdoorPerf = OutdoorPerf, vritk = vritk,
-      worldCache = getWorldCache, grass = function() return grassRenderer end, android = S.android })
+      worldCache = getWorldCache, grass = function() return grassRenderer end, android = S.android,
+      vr = function() return S.android or (R and R.xr and R.xr.started==true) end })
     if okN and h then prepareHost = h else log("prepare host not built: " .. tostring(h)) end
   elseif not okPH then
     log("prepare host failed to load: " .. tostring(PrepareHost))
@@ -796,9 +814,12 @@ end
 
 local bootPrepare -- set after renderer construction helpers
 local function ensureRenderer()
+  if not ControlsHelp.installed() then installControlsHelp() end
   if R then return R end
   grassRenderer = RetroGrass.new({shape=opt("fr_grass_shape"),ground="native"})
-  V.require("render/FrlgVoxelTrees").setActive(opt("fr_trees") == "voxel")
+  local treeStyle=opt("fr_trees")
+  V.require("render/FrlgVoxelTrees").setLowQuality(treeStyle == "voxel_low")
+  V.require("render/FrlgVoxelTrees").setActive(treeStyle == "voxel" or treeStyle == "voxel_low")
   local source = Mods.WorldSource.new()
   -- Lab 57 SIGNS compat gate: lettered signs and their native-shape repairs exist only while VRITK (the
   -- VRITK_FRLG_HOST bridge) is installed AND active. Looked up through the mod registry on every map input,
@@ -864,6 +885,7 @@ local function ensureRenderer()
   if BattleMods then -- W6: battles in 3D
     local okP, pass = pcall(BattleMods.Pass.new, { camera = camera, hostApi = hostApi, log = print,
       findMod = function(id) return mod.find(id) end, -- W6 r2: the in-battle ball throw seam
+      aimEnabled = function() return R and R.xr and R.xr.started==true and opt("battle_aim")~=false end,
       battleMove = opt("battle_move") ~= false, -- battle-move: walk / turn inside the battle area
       walkPct = function() return FreeMove and FreeMove.walkSpeed() or 75 end })
     if okP then R.battle = pass else log("battle presenter not built: " .. tostring(pass)) end
@@ -1211,6 +1233,7 @@ local function teardown(reason)
   if vrRows and VrControls then pcall(VrControls.uninstall, vrRows); vrRows = nil end
   local r = R
   R = nil
+  if ControlsHelp then pcall(ControlsHelp.uninstall) end
   if prepareHost then pcall(prepareHost.release, prepareHost, r) end
   if S.desktopLoading then pcall(S.desktopLoading.release, S.desktopLoading); S.desktopLoading = nil end
   S.desktopBuilding = false -- Lab 59
@@ -1249,7 +1272,7 @@ end
 bootPrepare = V.require("perf/BootPrepare").new({
   enabled = function() return S.bootEnabled and OutdoorPerf.precacheFirstLoad ~= false and OutdoorPerf.worldCache ~= false end,
   host = getPrepareHost, renderer = ensureRenderer,
-  screen = V.require("render/PrepareScreen"), clock = clock,
+  screen = {new=function() return V.require("render/PrepareScreen").new({vr=S.android or (R and R.xr and R.xr.started==true)})end}, clock = clock,
   ready = function(value) S.preintroReady = value end,
   log = log,
 })
@@ -1763,6 +1786,7 @@ local function questFrame(frame)
   local battle3d = battleFrame(r)
   local bp = battle3d and r.battle or nil
   local want3d = S.voxelOn and not S.failed and ((field and not effectsNeedFlat()) or battle3d)
+  if ControlsHelp.isOpen() then want3d=false end
   -- Lab 60: with the Loading screen on, a warp's new root is NOT built inside this frame's pump (that is one 0.2-1.1 s
   -- call before the frame is submitted, so Loading could never be on screen during it). The pump queues the root job, this
   -- frame submits the Loading panel, and the job is built sliced under the hold from the next frame on.
@@ -1894,6 +1918,7 @@ local function questFrame(frame)
       return out
     end,
     panelCanvas = function()
+      if ControlsHelp.isOpen() then return ControlsHelp.canvas(Mods.XRSession.QUAD_W,Mods.XRSession.QUAD_H) end
       if prepareHost and prepareHost.failure then
         local c = prepareHost:canvas(Mods.XRSession.QUAD_W, Mods.XRSession.QUAD_H)
         if c then return c end
@@ -2150,6 +2175,8 @@ mod.events:on("game.ready", function(payload)
     if not okM then log("turn option migration failed: " .. tostring(errM)) end
     local okD, errD = pcall(VrControls.migrateDisplay, { id = mod.id }, S.game) -- VR DISPLAY: quality -> rows, once
     if not okD then log("display option migration failed: " .. tostring(errD)) end
+    local okT, errT = pcall(VrControls.migrateTrees, { id = mod.id }, S.game)
+    if not okT then log("tree option migration failed: " .. tostring(errT)) end
   end
 
   local okW, errW = pcall(installExitWrappers, payload and payload.game)
@@ -2173,8 +2200,9 @@ mod.events:on("mod.options_changed", function(p)
       mouseStep()
     elseif p.key == "fr_grass_shape" and R then
       R.scene:setRetroShape(p.value)
-    elseif p.key == "fr_trees" and R then
-      R.scene:setVoxelTrees(p.value == "voxel")
+    elseif p.key == "fr_trees" then
+      V.require("render/FrlgVoxelTrees").setLowQuality(p.value == "voxel_low")
+      if R then R.scene:setVoxelTrees(p.value == "voxel" or p.value == "voxel_low") end
     elseif p.key == "voxel_view" then
       S.voxelOn = p.value ~= false
     elseif p.key == "movement" then -- Lab 8

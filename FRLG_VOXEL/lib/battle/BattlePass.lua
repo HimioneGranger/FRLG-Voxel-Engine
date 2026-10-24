@@ -25,6 +25,8 @@
 -- writes game state.
 local V = ...
 local Mat4 = V.require("render/Mat4")
+local AimMarker=V.require("battle/AimMarker")
+local NativeDialogue=V.require("compat/legacyBridge/lib/compat/NativeDialogue")
 local Shaders = V.require("render/Shaders")
 local Light = V.require("render/Light")
 local BattleStage = V.require("battle/BattleStage")
@@ -104,6 +106,7 @@ function BattlePass.new(opts)
   opts = opts or {}
   local self = setmetatable({
     camera = opts.camera, hostApi = opts.hostApi, log = opts.log or print,
+    aimEnabled=opts.aimEnabled,
     engine = opts.engine,
     source = opts.source or BattleSource.new({ engine = opts.engine }),
     state = "idle", t = 0, exitT = nil, frameNo = 0,
@@ -156,6 +159,15 @@ function BattlePass:tabletOwnsUi()
   if not (t and type(t.available) == "function") then return false end
   local ok, on = pcall(t.available)
   return ok and on == true
+end
+
+-- Presentation is separate from tablet availability (which still owns inputs
+-- and battle locomotion). Read after hand layers update, so holstering takes
+-- effect in the same rendered frame; no engine message is copied or advanced.
+function BattlePass:tabletShowsUi()
+  local c=self:vritkCompat();local t=c and c.tablet
+  if not(t and type(t.presented)=='function')then return false end
+  local ok,shown=pcall(t.presented);return ok and shown==true
 end
 
 -- The user's opening beams this frame: list of { battler, serial, age, growSec, settleSec } (plain data).
@@ -1035,6 +1047,22 @@ local function prepareBody(self, view, uiCanvas)
     table.insert(list, 2, { kind = "platform", id = -2, mesh = setMesh(self, n, skirt, white()),
       color = BattlePass.PLATFORM_EDGE })
   end
+  -- Cache/update ground cue meshes once here; eye drawing only reuses them.
+  local aimOn=type(self.aimEnabled)=='function' and self.aimEnabled()==true
+  local pendingIds
+  if aimOn then
+    local compat=self:vritkCompat()
+    local cy=compat and compat.chooseYou
+    if cy and type(cy.sendOutTargets)=='function' then
+      local ok,ids=pcall(cy.sendOutTargets)
+      if ok and type(ids)=='table' then pendingIds=ids end
+    end
+  end
+  for _,cue in ipairs(AimMarker.select(throwSlots,pendingIds)) do
+    n=n+1
+    list[#list+1]={kind='aim',id=cue.id,mesh=setMesh(self,n,AimMarker.vertices(cue),white()),
+      color=AimMarker.COLOR,alpha=AimMarker.ALPHA}
+  end
   -- debug 3/4 view: mark the real seat
   if self.debugView == "34" and stage.seat and white() then
     local m = { kind = "marker", id = 9, x = stage.seat.x, z = stage.seat.z,
@@ -1180,6 +1208,11 @@ local function drawEyeBody(self, env)
         local col = c.color or BattlePass.PLATFORM_COLOR
         g.setColor(col[1], col[2], col[3], 1)
         Shaders.send(shader, "u_alphaCut", 0)
+      elseif c.kind == "aim" then
+        g.setDepthMode("lequal", false)
+        g.setBlendMode("alpha")
+        g.setColor(c.color[1],c.color[2],c.color[3],c.alpha)
+        Shaders.send(shader,"u_alphaCut",0)
       elseif c.kind == "band" then
         -- the band canvas holds premultiplied colour (alpha-blended sprites
         -- drawn onto a clear canvas). No depth test: on the eye-facing band
@@ -1323,7 +1356,6 @@ end
 
 -- The pose, the card's model matrix and the hint's model matrix depend only on the pinned seat, the strip
 -- (or full frame) and the canvas height: built when one of those changes, not per frame or per eye.
-local HINT_ROWS = { ".###.", "#...#", "#...#", "#####", "#...#", "#...#", "#...#" }
 local function commandCache(self, full, uh)
   local b, yaw = self.cardBase, self.cardYaw
   local c = self.cmdCache
@@ -1345,39 +1377,11 @@ local function commandCache(self, full, uh)
   return c
 end
 
--- A 24x24 red disc with a white "A" (built once, only when a hint is first wanted).
+-- Native-font A in a native menu frame, built once outside the eye pass.
 function hintImage(self)
-  if self.hintImg ~= nil then return self.hintImg or nil end
-  self.hintImg = false
-  local ok, img = pcall(function()
-    local N = 24
-    local data = love.image.newImageData(N, N, "rgba8")
-    local cx, cy = (N - 1) / 2, (N - 1) / 2
-    for y = 0, N - 1 do
-      for x = 0, N - 1 do
-        local d = math.sqrt((x - cx) ^ 2 + (y - cy) ^ 2)
-        if d <= 11.5 then
-          local edge = d > 9.5
-          if edge then data:setPixel(x, y, 0.35, 0.05, 0.05, 1) else data:setPixel(x, y, 0.86, 0.12, 0.12, 1) end
-        else
-          data:setPixel(x, y, 0, 0, 0, 0)
-        end
-      end
-    end
-    for gy = 1, #HINT_ROWS do
-      for gx = 1, 5 do
-        if HINT_ROWS[gy]:sub(gx, gx) == "#" then
-          for oy = 0, 1 do
-            for ox = 0, 1 do data:setPixel(7 + (gx - 1) * 2 + ox, 5 + (gy - 1) * 2 + oy, 1, 1, 1, 1) end
-          end
-        end
-      end
-    end
-    local image = love.graphics.newImage(data)
-    image:setFilter("linear", "linear")
-    return image
-  end)
-  if ok and img then self.hintImg = img else self:logOnce("hintimg", "A hint image failed: " .. tostring(img)) end
+  if self.hintImg then return self.hintImg end
+  local ok,img=pcall(NativeDialogue.hint)
+  if ok and img then self.hintImg=img end
   return self.hintImg or nil
 end
 
@@ -1385,8 +1389,8 @@ local function hintMesh(self)
   local m = self.hintMeshV
   if m then return m end
   local verts = {
-    { -0.5, -0.5, 0, 0, 1, 0, 0, 0 }, { 0.5, -0.5, 0, 1, 1, 0, 0, 0 }, { 0.5, 0.5, 0, 1, 0, 0, 0, 0 },
-    { -0.5, -0.5, 0, 0, 1, 0, 0, 0 }, { 0.5, 0.5, 0, 1, 0, 0, 0, 0 }, { -0.5, 0.5, 0, 0, 0, 0, 0, 0 },
+    { -0.5, -2/3, 0, 0, 1, 0, 0, 0 }, { 0.5, -2/3, 0, 1, 1, 0, 0, 0 }, { 0.5, 2/3, 0, 1, 0, 0, 0, 0 },
+    { -0.5, -2/3, 0, 0, 1, 0, 0, 0 }, { 0.5, 2/3, 0, 1, 0, 0, 0, 0 }, { -0.5, 2/3, 0, 0, 0, 0, 0, 0 },
   }
   local ok, nm = pcall(love.graphics.newMesh, Shaders.FORMAT, verts, "triangles", "static")
   if not ok then return nil end
@@ -1399,7 +1403,7 @@ local function drawOverlayBody(self, P, eyeLocal)
   if not (self.frameCards and self.uiCanvas and P and eyeLocal) then return 0 end
   -- battle-ui: the tablet owns the battle UI (COMMAND_CARD "auto"): no floating card
   local info = self.info or {}
-  if self.tabletUi and not (BattlePass.DIALOGUE_CARD and info.battleDialogue) then
+  if not NativeDialogue.showOverlay(info,self.tabletUi,self:tabletShowsUi(),BattlePass.DIALOGUE_CARD) then
     self.stats.commandSkipped = (self.stats.commandSkipped or 0) + 1
     return 0
   end

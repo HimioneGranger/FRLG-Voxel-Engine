@@ -6,6 +6,7 @@ local function bridgeAvailable(bridge)
   return bridge:status().available
 end
 
+local NativeDialogue=V.require('compat/NativeDialogue')
 local M = {}
 local state = { active=false, presented=false, sticky={} }
 -- battle-ui (2026-10-01): the Gear surface bridge the component was installed with, for available()
@@ -177,7 +178,7 @@ function M.newSkipOverlay(belt)
       return tostring(h.serial)..':'..h.phase
     end
   end
-  local function bounds(w,h) return w*.64,h*.82,w*.32,h*.14 end
+  local function bounds(w,h) return w*(160/240),h*(120/160),w*(72/240),h*(32/160) end
   local function inside(x,y,w,h)
     local bx,by,bw,bh=bounds(w,h)
     return x>=bx and x<=bx+bw and y>=by and y<=by+bh
@@ -215,12 +216,13 @@ function M.newSkipOverlay(belt)
   end
   function self:draw(graphics,w,h)
     self:sync();if not key then return false end
-    local x,y,bw,bh=bounds(w,h)
-    graphics.setColor(.035,.12,.11,1);graphics.rectangle('fill',x,y,bw,bh)
-    graphics.setColor(.65,1,.8,1);graphics.rectangle('line',x,y,bw,bh)
-    if graphics.printf then graphics.printf('SKIP',x,y+(bh-12)/2,bw,'center')
-    else graphics.print('SKIP',x+4,y+2) end
-    return true
+    graphics.push('all')
+    local ok,done=pcall(function()
+      graphics.scale(w/240,h/160)
+      return NativeDialogue.button(graphics,160,120,72,32,'SKIP')
+    end)
+    graphics.pop()
+    return ok and done==true
   end
   function self:reset() key=nil;pressed=nil;pointerDown=nil end
   return self

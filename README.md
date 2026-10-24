@@ -6,11 +6,11 @@ A 3D voxel/render engine for FireRed and LeafGreen: reviewed buildings,
 **Engine only:** requires a compatible Gen1Recomp Gen 3 host and your own game
 data. The host, ROMs, saves and optional gameplay mods are not included.
 
-**Beta 6** brings the current fog, tree visibility, directional spawn and
-sign-back fixes from FireRed lab 3255. Native-art voxel trees, upright flowers
-and persistent tree caches remain included. Thanks to
-[flixtkc](https://github.com/flixtkc) for the original voxel-tree contribution
-in [PR #1](https://github.com/HimioneGranger/FRLG-Voxel-Engine/pull/1).
+**Beta 7** adds **Trees: Cards / Voxel / Voxel Low Res**, lighter tree rendering,
+VR controls guides, belt/throw controls and physical-item adapters. It retains
+the current buildings, caves, fog and sign work. New interaction features still
+need headset testing. Thanks to [flixtkc](https://github.com/flixtkc) for the
+original trees in [PR #1](https://github.com/HimioneGranger/FRLG-Voxel-Engine/pull/1).
 See the [change notes](docs/CHANGELOG.md) for details and limits.
 
 ## What has been overhauled
@@ -42,13 +42,16 @@ establish headset performance.
 2. Download the ZIP from **Releases**.
 3. Extract **only `FRLG_VOXEL`** into the host's mods folder, replacing the old
    engine folder. No separate compatibility mod is required.
-4. In the engine's settings, set **VOXEL TREES → VOXEL**. The default is
-   **SHEETS**; switching rebuilds the nearby maps for the selected mode.
+4. Under **OUTDOOR LOOK**, choose **Trees: Cards / Voxel / Voxel Low Res**.
+   Cards keeps flat trees. Voxel uses detailed 3D trees. Voxel Low Res uses
+   coarser 3D trees for slower systems. The default remains Cards.
+   The two voxel modes switch immediately; switching to/from Cards rebuilds
+   nearby maps.
 
 Keep your saves. Remove beta 1's old `VRITK_FRLG_HOST` folder if present.
 Changed geometry may prepare once; compatible completed caches are reused.
 
-Reference host: FireRed lab 3255, engine 0.3.33/mod API 2/LÖVE, with OpenXR on
+Reference host baseline: FireRed lab 3257, engine 0.3.33/mod API 2/LÖVE, with OpenXR on
 Quest. Preparation and controls need matching host services. This ZIP does not
 update the host, install the custom title/Oak mod or supply a Steam Frame launcher.
 The separate Windows PCVR host trial is not bundled in this engine ZIP.

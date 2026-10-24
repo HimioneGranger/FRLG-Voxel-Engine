@@ -1,10 +1,10 @@
 -- Physical follower medicine. Pose callbacks only sample; native writes run
 -- on input.step. All identities and contact are checked again at commit.
 local Host=...
-local M={CONTACT_METRES=.40,MAX_AGE=.25}
+local M={CONTACT_METRES=.80,MAX_AGE=.25}
 local live
 local function finite(x)return type(x)=='number'and x==x and math.abs(x)<math.huge end
-function M.contact(point,target,scale)
+function M.contact(point,target,scale,radius)
  if not(point and target and finite(scale)and scale>0)then return false end
  local sum=0
  for i,k in ipairs({'x','y','z'})do
@@ -14,37 +14,44 @@ function M.contact(point,target,scale)
   local half=math.max(0,size or 0)/2
   local d=math.max(0,math.abs(point[i]-target[k])-half);sum=sum+d*d
  end
- return sum<=(M.CONTACT_METRES*scale)^2
+ return sum<=((radius or M.CONTACT_METRES)*scale)^2
 end
 function M.new(deps)
  return setmetatable({deps=deps,armed=false,last={}}, {__index=M})
 end
 function M:reset()self.pending=nil;self.scene=nil;self.held=nil;self.armed=false end
 function M:observe(scene,context)
- local held=scene and scene.contents and scene.contents.held
+ local contents=scene and (scene.physicalMedicineContents or scene.contents)
+ local held=contents and contents.held
  local hand=held and held.hand
  local tracked=hand and context.hands and context.hands[hand]
- local root=scene and scene.itemHandRoot
+ local root=scene and (scene.physicalMedicineRoot or scene.itemHandRoot)
  if not(held and (hand=='left'or hand=='right')and root and tracked and tracked.tracked
-   and scene.state and scene.state.itemsAccessible
+   and scene.state
    and not(context.reservedHands and context.reservedHands[hand])
-   and self.deps.supported(held.id) and self.deps.ready())then self:reset();return end
+   and self.deps.supported(held.itemId or held.id) and self.deps.ready())then self:reset();return end
  local value=tonumber((context.controls or {})[hand=='left'and'triggerL'or'triggerR'])or 1
  if not finite(value)then value=1 end
- if self.held~=held then self.pending=nil;self.armed=false;self.held=held end
+ if self.held~=held then self.pending=nil;self.armed=self.deps.auto and self.deps.auto(held.itemId or held.id)or false;self.held=held end
  local scale=math.sqrt(root[1]^2+root[5]^2+root[9]^2)
  local point={root[4],root[8],root[12]}
  local shown,entity,target=self.deps.target()
  local now=self.deps.now()
- self.scene={contents=scene.contents,held=held,point=point,scale=scale,at=now}
+ self.scene={contents=contents,held=held,point=point,scale=scale,at=now}
+ local auto=self.deps.auto and self.deps.auto(held.itemId or held.id)
+ local radius=auto and .22 or M.CONTACT_METRES
+ self.scene.radius=radius
+ local inRange=shown and entity and M.contact(point,target,scale,radius)
+ if auto then value=inRange and 1 or 0 end
  if self.deps.claim then self.deps.claim(hand)end
  if value<=.35 then self.armed=true end
  if value>=.75 and self.armed then
-  self.armed=false -- one attempt per squeeze, even when out of range
-  if shown and entity and M.contact(point,target,scale)then
-   local token=self.deps.token(shown,held.id)
+  self.armed=false -- one attempt per squeeze/contact, no hidden inventory writes
+  if self.deps.spray and not auto then self.deps.spray(held)end
+  if inRange then
+   local token=self.deps.token(shown,held.itemId or held.id)
    if token then token.entity=entity;token.held=held;token.at=now;self.pending=token end
-  end
+  elseif self.deps.feedback then self.deps.feedback(hand,false,'out_of_range')end
  end
 end
 function M:step()
@@ -54,7 +61,7 @@ function M:step()
  if not(scene and age>=0 and age<=M.MAX_AGE and self.deps.now()-token.at<=M.MAX_AGE
   and scene.contents.held==token.held and self.deps.ready())then return end
  local mon,entity,target=self.deps.target()
- if mon~=token.mon or entity~=token.entity or not M.contact(scene.point,target,scene.scale)then return end
+ if mon~=token.mon or entity~=token.entity or not M.contact(scene.point,target,scene.scale,scene.radius)then return end
  local ok,why,text=self.deps.apply(token)
  self.last={ok=ok==true,reason=why,item=token.itemId}
  if ok then scene.contents.held=nil;scene.contents.reason='used';self.held=nil end
@@ -62,6 +69,8 @@ function M:step()
 end
 function M.status()return live and live.last or {reason='not_installed'}end
 function M.install(V)
+ local Kit=Host.require('compat/Gen3PhysicalInventory')
+ local undoItems=Kit.install(V)
  local Controller=V.require('QuestBackpackControl')
  local original,invalid=Controller.update,Controller.invalidate
  local Runtime=require('src.core.game3.runtime')
@@ -71,6 +80,7 @@ function M.install(V)
  local Map=require('src.core.game3.map')
  local G3=Host.require('Game3Capture')
  local Medicine=Host.require('compat/Gen3FollowerMedicine')
+ local Berry=Host.require('compat/Gen3BerryFeed')
  local function exports()
   local found=V.mod.find('FRLG_CATCH');return found and found.exports
  end
@@ -93,12 +103,15 @@ function M.install(V)
  end
  local function supported(id)
   local n=Items.toNumericId(id);if not n then return false end
+  if Items.pocketOf(n)=='BERRY_POUCH'then return true end
   local kind,field=Items.medicineKind(n),Items.fieldUseKind(n)
   return (kind=='heal'or kind=='status'or kind=='full_restore')
     and(field=='heal'or field=='status')and not Use.isFlute(n)
  end
  local state=M.new{
   supported=supported,ready=ready,target=target,now=function()return love.timer.getTime()end,
+  auto=function(id)return Items.pocketOf(id)=='BERRY_POUCH'end,
+  spray=Kit.spray,
   token=function(mon,id)
    local s=Runtime.getSession()
    if not(s and s.map==Map.current)then return end
@@ -106,7 +119,13 @@ function M.install(V)
   end,
   apply=function(token)
    if Map.current~=token.map or Runtime.getSession()~=token.session then return false,'stale_context'end
-   return Medicine.apply({runtime=Runtime._game,ItemsData=Items,Bag=Bag,ItemUse=Use},token)
+   local deps={runtime=Runtime._game,ItemsData=Items,Bag=Bag,ItemUse=Use}
+   if Items.pocketOf(token.itemId)=='BERRY_POUCH'then
+    local ok,why,text=Berry.apply(deps,token)
+    if ok then pcall(Kit.happy,token.mon)end
+    return ok,why,text
+   end
+   return Medicine.apply(deps,token)
   end,
   claim=function(side)
    local engine=V.mod.find('FRLG_VOXEL');local vh=engine and engine.exports and engine.exports.vrHost
@@ -119,7 +138,8 @@ function M.install(V)
    local ex=exports();local hud=ex and ex.catching and ex.catching.hud
    if hud and hud.showFeedback then
     -- Native messages include pen bytes; use plain world text for this card.
-    hud:showFeedback(ok and 'Medicine used.'or 'That medicine had no effect.',2)
+    local berry=why=='fed'
+    hud:showFeedback(ok and (berry and 'Berry fed.'or'Medicine used.')or (why=='out_of_range'and'Bring the item closer to your Pokemon.'or'That item had no effect. Keep holding it and try again.'),2)
    end
    if Host.mod.log then Host.mod.log:info('Follower medicine: %s (%s)',tostring(ok),tostring(why))end
   end,
@@ -137,6 +157,7 @@ function M.install(V)
   if Controller.update==update then Controller.update=original end
   if Controller.invalidate==invalidate then Controller.invalidate=invalid end
   if type(remove)=='function'then remove()end
+  if type(undoItems)=='function'then undoItems()end
  end
 end
 return M

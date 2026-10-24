@@ -1,6 +1,25 @@
 -- Exact prior cache identities: scheduling/IO changes only.
 -- Geometry, source, codec and renderer output parity are separately required.
 return {
+ -- Exact low-tree draw-policy release: existing stored stamps unchanged.
+ -- See firered-low-detail-trees-20261024 cache audit and production draw tests.
+ ["0859563cc0619ed338ab921c73523c0d"]={"e55ca30ae0dfe3596b2d0014fc4145a5","18d8db4cb0740a71cd7b3d0dbee1e04c","f788608e65e3795936968f4ed04ba6e0","b53b3add0d22252d3590db5c2e00cae8"},
+
+ -- Exact low-tree draw-policy release: existing stored stamps unchanged.
+ -- See firered-low-detail-trees-20261024 cache audit and production draw tests.
+ ["f788608e65e3795936968f4ed04ba6e0"]={"e55ca30ae0dfe3596b2d0014fc4145a5","18d8db4cb0740a71cd7b3d0dbee1e04c","b53b3add0d22252d3590db5c2e00cae8"},
+
+ -- Exact native-text/controls/items/juggle release: dynamic presentation/physics only; no Scene producer changes.
+ -- Evidence: battle-text-consistency checkpoint CACHE_REUSE_AUDIT + TEXT_BEHAVIOR_CHECK.
+ ["18d8db4cb0740a71cd7b3d0dbee1e04c"]={"e55ca30ae0dfe3596b2d0014fc4145a5","b53b3add0d22252d3590db5c2e00cae8"},
+
+ -- Exact3256 horizon baseline plus GPU-only indexed tree upload; CPU geometry unchanged.
+ ["e55ca30ae0dfe3596b2d0014fc4145a5"]={"b53b3add0d22252d3590db5c2e00cae8"},
+
+-- Exact indexed GPU tree upload; expanded geometry and render pixels are
+-- unchanged (firered-tree-index-optimize-20261024/validation).
+ ["37d668acf4b8fa19d611587718379581"]={"1e089f35391507340fdc2edf61930b04","33a06e5d8a44e2c5e7e17eaeb2801f69"},
+ ["bc42758470ac9db8d5c5183a55240cf1"]={"a3e28dc01bb4340d2aa8551b6f468853","f3016b922fa9709f633c763998655fc7"},
 -- Exact rear-arrow texture correction; native sign vertices/readiness and
 -- front pixels remain identical (firered-sign-arrows-20261024/run-1).
  ["1e089f35391507340fdc2edf61930b04"]={"33a06e5d8a44e2c5e7e17eaeb2801f69"},

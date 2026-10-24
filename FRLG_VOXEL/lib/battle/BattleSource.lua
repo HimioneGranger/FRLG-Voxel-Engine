@@ -201,12 +201,15 @@ function BattleSource:info()
   for _, row in ipairs(BattleSource.WINDOWS) do
     if call(self:mod(row[1]), row[2]) == true then info.window = row[3]; break end
   end
-  -- Opening dialogue ("A wild X appeared!", "Go! Y!"): the engine waits for A on it. The tablet owns the battle
+  -- Native dialogue includes move/EXP/money/results as well as the intro. The tablet owns the battle
   -- UI, so without this the player never sees what the game is waiting for. Read only; the engine's message
   -- queue, pacing and input are untouched. Link, Oak's tutorial and the Pokedude have their own presentation.
   info.dialogPending = call(ui, "dialogPending") == true
   if info.phase == "intro" and st and not (st.link or st.oldManTutorial or st.pokedude) then
     info.battleDialoguePhase = "intro"
+  elseif info.dialogPending and not(st and(st.link or st.oldManTutorial or st.pokedude))then
+    local message=self:mod("message")
+    if call(message,"isOpen")==true then info.battleDialoguePhase=info.phase or "result"end
   end
   info.battleDialogue = info.active and not (B and B._headless)
     and info.dialogPending and info.battleDialoguePhase ~= nil

@@ -28,6 +28,17 @@ end
 function M.active() return VoxelTree.enabled end
 function M.generation() return generation end
 
+-- Draw policy only: reuse the already-authored coarse stamp at every distance.
+-- Keep world records, native sources, placements and detailed templates intact.
+local lowQuality=false
+function M.setLowQuality(on)
+  local nextValue=on==true
+  if nextValue==lowQuality then return false end
+  lowQuality=nextValue
+  return true
+end
+function M.lowQuality() return lowQuality end
+
 function M.setActive(on)
   local enabled=on==true and M.supported()
   if enabled==VoxelTree.enabled then return false end
@@ -38,13 +49,33 @@ end
 
 function M.new() return setmetatable({templates={},records={}},R) end
 
+-- Exact indexing is a GPU upload optimization only. Keep every attribute,
+-- triangle order and winding; CPU stamps/cache/authoring profiles stay intact.
+local function templateMesh(vertices)
+  local unique,indices,lookup={},{},{}
+  for i,v in ipairs(vertices) do
+    -- All FORMAT channels are float; omitted channels have LÖVE's zero default.
+    -- Binary double keys are exact and avoid formatting thirteen strings per
+    -- vertex during a cached map's GPU upload. No work is added to draw().
+    local key=love.data.pack("string","<ddddddddddddd",
+      v[1] or 0,v[2] or 0,v[3] or 0,v[4] or 0,v[5] or 0,v[6] or 0,v[7] or 0,
+      v[8] or 0,v[9] or 0,v[10] or 0,v[11] or 0,v[12] or 0,v[13] or 0)
+    local index=lookup[key]
+    if not index then index=#unique+1;lookup[key]=index;unique[index]=v end
+    indices[i]=index
+  end
+  local mesh=love.graphics.newMesh(M.FORMAT,unique,"triangles","static")
+  mesh:setVertexMap(indices)
+  return mesh
+end
+
 function R:template(pair,key,stamp)
   local id=pair..":"..key
   local template=self.templates[id]
   if template then return template end
   template={tris=stamp.tris,radius=stamp.radius,height=stamp.height,layers={}}
   for _,layer in ipairs(M.LAYERS) do
-    if #stamp[layer]>0 then template.layers[layer]=love.graphics.newMesh(M.FORMAT,stamp[layer],"triangles","static") end
+    if #stamp[layer]>0 then template.layers[layer]=templateMesh(stamp[layer]) end
   end
   self.templates[id]=template
   return template
@@ -129,6 +160,7 @@ end
 function R:draw(scene,env,planes,visible,shader,counters)
   local state=self.drawState or {};self.drawState=state;state.texture=nil;state.rec=nil
   local resting=false
+  local low=lowQuality -- one mode for this complete eye pass; no generation/cache reset
   local nearSquared=M.NEAR_CELLS*M.NEAR_CELLS
   local beginSquared=M.TRANSITION_START_CELLS*M.TRANSITION_START_CELLS
   local endSquared=M.TRANSITION_END_CELLS*M.TRANSITION_END_CELLS
@@ -160,7 +192,9 @@ function R:draw(scene,env,planes,visible,shader,counters)
             if tx*tx+tz*tz<=farSquared and visible(planes,x-radius,y,z-radius,x+radius,y+height,z+radius) then
               local cx,cz=x-env.camX,z-env.camZ
               local d2=cx*cx+cz*cz
-              if bucket.nearGroup==bucket.farGroup then
+              if low then
+                append(bucket.farGroup,offset)
+              elseif bucket.nearGroup==bucket.farGroup then
                 append(bucket.nearGroup,offset)
               elseif transition then
                 if d2<endSquared then append(bucket.nearGroup,offset) end
@@ -180,7 +214,9 @@ function R:draw(scene,env,planes,visible,shader,counters)
             camera[1],camera[2]=env.camX-rec.ox,env.camZ-rec.oz
             S.send(shader,"u_treeLodCamera",camera)
           end
-          lod[1]=transition and g.pass or 0
+          -- The far template is fully opaque nearby in low mode. Its normal
+          -- complementary transition mask would otherwise hide it near you.
+          lod[1]=transition and not low and g.pass or 0
           S.send(shader,"u_treeLod",lod)
           -- Both eyes keep separate visibility decisions. Only the upload is
           -- reused when the ordered instance membership is exactly identical.

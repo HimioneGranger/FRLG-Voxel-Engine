@@ -30,6 +30,11 @@ M.GROUP = { id = "group.vrcontrols", label = "VR CONTROLS" }
 -- One list drives the rows, the migration and the tests. Labels are short on purpose:
 -- the OPTION screen gives a label about 12 characters before the value column.
 M.SPECS = {
+  {id="frlgvoxel:battle-aim",key="battle_aim",label="AIM CUE",kind="toggle",default=true},
+  {id="frlgvoxel:belt-locked",key="belt_locked",label="BELT LOCK",kind="toggle",default=true},
+  {id="frlgvoxel:throw-strength",key="throw_strength",label="THROW POWER",kind="choice",
+    choices={{"NORMAL","normal"},{"ASSISTED","assisted"}},default="assisted"},
+
   { id = "frlgvoxel:turn-mode", key = "turn_mode", label = "TURN MODE", kind = "choice",
     choices = { { "SNAP", "snap" }, { "SMOOTH", "smooth" } }, default = "snap" },
   { id = "frlgvoxel:snap-angle", key = "snap_angle", label = "SNAP ANGLE", kind = "number",
@@ -97,8 +102,8 @@ M.LOOK_SPECS = {
   { id = "frlgvoxel:sun-shadows", key = "perf_sun_shadows", label = "SUN SHADOWS", kind = "choice",
     choices = { { "MOVING", "moving" }, { "FIXED", "fixed" }, { "OFF", "off" } }, default = "fixed" },
 }
-M.LOOK_SPECS[#M.LOOK_SPECS+1]={id="frlgvoxel:voxel-trees",key="fr_trees",label="VOXEL TREES",kind="choice",
- choices={{"SHEETS","sheet"},{"VOXEL","voxel"}},default="sheet"}
+M.LOOK_SPECS[#M.LOOK_SPECS+1]={id="frlgvoxel:voxel-trees",key="fr_trees",label="TREES",kind="choice",
+ choices={{"CARDS","sheet"},{"VOXEL","voxel"},{"VOXEL LOW RES","voxel_low"}},default="sheet"}
 M.SPEED_GROUP = { id = "group.vroutspeed", label = "OUTDOOR SPEED" }
 M.SPEED_SPECS = {
   { id = "frlgvoxel:frame-hoist", key = "perf_frame_hoist", label = "FRAME HOIST", kind = "toggle", default = true },
@@ -241,6 +246,17 @@ local function write(env, game, key, value)
   return made and result ~= false
 end
 M.write = write
+
+-- One-time migration of the retired separate low-detail toggle. Preserve
+-- existing Cards/detailed choices and never override a new explicit mode.
+function M.migrateTrees(env,game)
+  local stored=game and game.mods and game.mods.modOptions and game.mods.modOptions[env.id]
+  if type(stored)~="table" or stored.fr_tree_low==nil then return false end
+  if stored.fr_trees=="voxel" and stored.fr_tree_low==true then
+    if not write(env,game,"fr_trees","voxel_low") then return false end
+  end
+  return write(env,game,"fr_tree_low",nil)
+end
 
 local function buildRow(env, spec)
   return {
