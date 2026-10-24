@@ -484,6 +484,7 @@ if S.android then
 end
 local mouseControls, mouseStep
 local R = nil -- lazily built renderer objects
+local saveView -- FRLG-owned save thumbnail capture
 local flat = nil -- Lab 49: the FlatRate instance, built below once its gate functions exist
 
 -- W4: built once, early -- not lazily like R -- so mod.exports.vrHost is a
@@ -1202,6 +1203,7 @@ end, 90)
 end
 
 local function teardown(reason)
+  if saveView then saveView:reset() end
   if mouseControls then mouseControls:release() end
   if bootPrepare then bootPrepare:reset() end
   S.preintroReady = nil
@@ -1633,6 +1635,20 @@ local function cloudPrewarm(r, frame, holdingNow)
 end
 
 local function questFrame(frame)
+  -- Log presentation gates on changes only. This does not modify preferences.
+  if frame % 120 == 0 then
+    local game = currentGame()
+    local title = type(mod.find) == "function" and mod.find("firered_vr_title")
+    local status = title and title.exports and title.exports.status
+    local ok, st = false, nil
+    if type(status) == "function" then ok, st = pcall(status) end
+    st = ok and type(st) == "table" and st or {}
+    local fields = { tostring(game and game.phase), tostring(game and game.boot and game.boot.phase),
+      tostring(S.bootEnabled), tostring(S.voxelOn), tostring(S.failed), tostring(S.xrGaveUp),
+      tostring(R and R.xr and R.xr.started), tostring(st.active), tostring(st.phase), tostring(st.failed) }
+    local signature = table.concat(fields, "|")
+    logOnce("presentation:" .. signature, "presentation gates game/boot/enabled/voxel/error/gaveUp/xr/titleActive/titlePhase/titleFailed=" .. signature)
+  end
   if not S.bootEnabled then return end
   local game = currentGame()
   if game and game.phase == "boot" and S.preintroReady ~= true and not immersiveIntroScene() then
@@ -1668,7 +1684,7 @@ local function questFrame(frame)
     if not r.xr:unavailableReason() then S.handedOver = true end
     local ok, why = r.xr:start()
     if not ok then
-      if why == "no-questVR-handle" or why == "not-android" or why == "quest-panel-inactive" then
+      if why == "not-android" then
         S.xrGaveUp = true
         logOnce("xr:" .. tostring(why), "Quest stereo unavailable (" .. tostring(why)
           .. "); the stock flat panel stays in charge")
@@ -1695,6 +1711,7 @@ local function questFrame(frame)
     local titleInputOwned, titleUpdated = false, false
     local sceneDt = dtNow()
     local sceneContext = { epoch = S.titleXREpoch, frame = frame }
+    if saveView then saveView:setInXR(true) end
     local controls, views, world, reason = r.xr:frame({
       wantWorld = true, wantPanel = false,
       renderEyes = function(v)
@@ -1809,6 +1826,7 @@ local function questFrame(frame)
   -- Lab 51: GC MODE SLACK owns the collector only for a stereo world frame (never
   -- while the GC RENDER TEST scope runs); slackAfterFrame hands it back otherwise.
   if r.pacer and r.pacer.slackFrame then r.pacer:slackFrame(want3d == true and collector == nil) end
+  if saveView then saveView:setInXR(true) end
   local controls, views, world, reason = r.xr:frame({
     collector = collector,
     wantWorld = want3d,
@@ -1911,6 +1929,20 @@ local function questFrame(frame)
   if not xrStatus and world == false and r.xr.panelSubmitted == true then
     if prepShow and prepareHost and S.prepareCanvasFrame == frame then prepareHost:presentedFrame(); S.preparationPresented = true end
     if S.loadShownFrame == frame then S.preparationPresented = true end
+  end
+  if saveView then
+    saveView:setInXR(false)
+    local okPreview, previewError = pcall(function()
+      local context, eligible, rejection = saveView.deps.context(game)
+      if eligible then
+        if holding then rejection="frame-holding" elseif warming then rejection="frame-warming"
+        elseif prepShow then rejection="frame-preparing" elseif battle3d then rejection="frame-battle"
+        elseif mr then rejection="frame-mr" end
+      end
+      saveView:afterFrame(context, type(views)=="table" and views[1] or nil, world == true, open,
+        eligible and not holding and not warming and not prepShow and not battle3d and not mr, frame, rejection)
+    end)
+    if not okPreview then logOnce("save-view-preview", "save preview unavailable: "..tostring(previewError)) end
   end
   if xrStatus then views = nil end -- never let a status string reach centerPose/hand code below
   S.slackWorld = world == true and r.xr.started == true -- Lab 51: SLACK and SKIP WINDOW PRESENT
@@ -2064,6 +2096,7 @@ mod.events:on("render.frame_drawn", function(payload)
   if not (payload and payload.kind == "game") then afterQuestFrame(); return end
   local state = graphicsState()
   local ok, err = pcall(questFrame, frame)
+  if saveView then saveView:setInXR(false) end
   if not ok then
     S.slackWorld = false
     unwind(state)
@@ -2258,6 +2291,72 @@ end)
 
 -- ------------------------------------------------------------ exports
 -- Diagnostics / driver seam (plain data in and out).
+local function saveViewContext(game)
+  local current = currentGame()
+  local session = game and game.session
+  -- FreeMove pre-save repairs session floor(px/16) drift to the logical cell.
+  -- Match the actual unmoved body, not that mutable serialization mirror.
+  local player = engine("src.core.game3.player")
+  local context = session and { game=game, session=session, map=session.map,
+    x=player and player.cellX or session.x, y=player and player.cellY or session.y,
+    px=player and player.px, py=player and player.py } or nil
+  local eligible = session and game==current and fieldPhase(game) and R and R.view and R.view.prepared
+    and R.scene and R.scene.rootId==session.map and R.xr and R.xr.started and not S.failed
+  local rejection
+  if eligible and R.view.fieldTransition then
+    local ok, veil = pcall(R.view.fieldTransition.veil,R.view.fieldTransition,nil)
+    if not ok or (veil and (veil[4] or 0)>0) then
+      eligible=false;rejection=not ok and "ctx-transition-error" or "ctx-transition-active"
+    end
+  end
+  -- Diagnostic enums only: preserve the existing eligibility result above.
+  if not eligible and not rejection then
+    if not game then rejection="ctx-no-game"
+    elseif not session then rejection="ctx-no-session"
+    elseif game~=current then rejection="ctx-game-mismatch"
+    elseif game.phase~="field" then rejection="ctx-not-field"
+    else
+      local Runtime=engine("src.core.game3.runtime")
+      local T=engine("src.core.game3.battle_transition")
+      if not(Runtime and Runtime.isActive and Runtime.isActive())then rejection="ctx-runtime-inactive"
+      elseif T and T.isActive and T.isActive()then rejection="ctx-battle-transition"
+      elseif not(R and R.view)then rejection="ctx-renderer"
+      elseif not R.view.prepared then rejection="ctx-not-prepared"
+      elseif not(R.scene and R.scene.rootId==session.map)then rejection="ctx-root"
+      elseif not(R.xr and R.xr.started)then rejection="ctx-xr-inactive"
+      elseif S.failed then rejection="ctx-host-failed"
+      else rejection="frame-ineligible"end
+    end
+  end
+  return context, eligible==true, rejection
+end
+saveView = V.require("quest/SaveViewCapture").new({
+  context=saveViewContext,
+  capture=function(eye,w,h)
+    if not (R and R.hostApi) then return nil end
+    return R.hostApi:renderCameraView(eye,w,h,{})
+  end,
+  copy=function(source)
+    local g=love.graphics
+    local state=graphicsState()
+    local canvas
+    local ok,err=pcall(function()
+      canvas=g.newCanvas(384,256,{format="rgba8",readable=true,msaa=0,dpiscale=1})
+      g.push("all");g.setCanvas(canvas);g.origin();g.setShader();g.setColor(1,1,1,1)
+      g.setDepthMode();g.setScissor();g.setStencilTest();g.setColorMask(true,true,true,true)
+      g.setBlendMode("replace","premultiplied");g.clear(0,0,0,1)
+      g.draw(source,0,0,0,384/source:getWidth(),256/source:getHeight())
+    end)
+    unwind(state)
+    if not ok then if canvas then pcall(canvas.release,canvas)end;error(err,0)end
+    return canvas
+  end,
+})
+mod.exports.saveView={
+  arm=function(game,attemptId)return saveView:arm(game,attemptId)end,
+  take=function(token)return saveView:take(token)end,
+  release=function(token)return saveView:release(token)end,
+}
 mod.exports.active = true
 mod.exports.status = function()
   local st = {
@@ -2365,4 +2464,5 @@ do
  local ok,why=pcall(function()return V.require('compat/LegacyBridge').start(V)end)
  if not ok then logOnce('compat-start','compatibility startup failed: '..tostring(why))end
 end
+
 

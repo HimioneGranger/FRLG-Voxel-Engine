@@ -95,6 +95,7 @@ Scene._yieldPointSafe = yieldPointSafe
 -- Lab 59 PRECACHE ON FIRST LOAD seam (lib/perf/FrPrepare.lua): the bulk driver sets the deadline of its own
 -- slice here (nil = none) and drives a second Scene instance; the live Scene:pump never calls this.
 function Scene._setDeadline(t) deadline = t end
+function Scene._hasDeadline() return deadline ~= nil end
 
 -- Lab 55 (build-e): VR PERFORMANCE switches, owned by render/OutdoorPerf.
 -- buildSlice (bool) and farMasks ("full" | "defer" | "off") are read live on
@@ -1505,7 +1506,12 @@ function Scene:_build(key, input)
     for _,ch in ipairs(rec.retroChunks or {})do rec.grassTris=rec.grassTris+ch.tris end
     rec.tris=rec.baseTris+rec.grassTris;rec.grassBuildMs=(now()-tGrass)*1000
   end
-  if self.voxelTrees and geom.frVoxelTrees then rec.tris=rec.tris+self.voxelTrees:build(rec,geom.frVoxelTrees) end
+  if pcCtx then pcCtx.voxelTrees=geom.frVoxelTrees end -- CPU-only capture input; no GPU records
+  if self.voxelTrees and geom.frVoxelTrees then
+    local treeTris=self.voxelTrees:build(rec,geom.frVoxelTrees)
+    rec.tris=rec.tris+treeTris
+    if pcCtx then pcCtx.voxelTreeTris=treeTris end
+  end
   if self.lighting and not sunless(input) and not input.isBorder then
     rec.lightRecord=LightingBuild.build(Scene,self,geom,input,key,yieldPoint,function(light)
       rec.lightRecord=light;self.inflight[rec]=true;rec.buildOwner=self;rec.buildCoroutine=coroutine.running()
@@ -1532,7 +1538,6 @@ end
 -- builds live and, after a clean build, queues the record for an idle-frame
 -- write (PC:pump, from Scene:pump).
 local function pcLive(self)
-  if VoxelTrees.active() then return nil end
   local pc = self.precache
   if PCmod and pc and BuildPerf.worldCache ~= false and pc:enabled() then return pc end
   return nil
@@ -1565,7 +1570,7 @@ function Scene:_pcSettings(input, plan)
   end
   return ("sh=%d;sun=%s;sl=%s;rg=%d;plan=%s;sg=%d"):format(self.shadows and 1 or 0, sun, slice,
     self.retroGrass and 1 or 0, tostring(plan), input.signCompat and 1 or 0) -- Lab 57 SIGNS: the sign gate changes sign geometry
-    .. ";sd=" .. self:_pcSignDigest(input)
+    .. ";sd=" .. self:_pcSignDigest(input) .. ";vt=" .. (VoxelTrees.active() and "1" or "0")
 end
 
 -- Top of _build. -> nil (cache off / bypassed) | ctx; ctx.rec is a finished record on a hit.
@@ -1584,6 +1589,8 @@ end
 function Scene:_pcBegin(key, input, signState)
   local pc = pcLive(self)
   if not pc then return nil end
+  local treeGeneration=VoxelTrees.generation()
+  local voxelTreeMode=VoxelTrees.active()==true
   local t0 = now()
   local ok, ctx = pcall(function()
     if type(input.grid) ~= "table" then pc:bypass("no grid"); return nil end
@@ -1594,15 +1601,21 @@ function Scene:_pcBegin(key, input, signState)
     local base, edgeD, paint = pc:baseKey(key, input, yieldPoint)
     if not base then pc:bypass(tostring(edgeD or "key")); return nil end
     local rk, full = pc:recordKey(base, settings)
-    local c = { rk = rk, full = full, settings = settings, plan = plan, edgeD = edgeD, paint = paint,
+    local c = { rk = rk, full = full, settings = settings, plan = plan, edgeD = edgeD, paint = paint, treeGeneration=treeGeneration, voxelTreeMode=voxelTreeMode,
       busy = (self.isBusy and self.isBusy()) and true or false, retro = self.retroGrass ~= nil,
       maskPlan = (plan ~= nil and plan ~= "now") and plan or nil,
       sunMode = (not sunless(input)) and Solar.mode() or nil }
     local host = self:_pcHost()
     host.signState, host.signConsumed = signState, false
+    host.voxelTreeMode=voxelTreeMode
     if SignRuntime then host.signUpload, host.signRelease = SignRuntime.upload, SignRuntime.release end
     local rec = pc:tryLoad(self, rk, full, input, plan, host)
     host.signState = nil
+    if treeGeneration~=VoxelTrees.generation() or voxelTreeMode~=(VoxelTrees.active()==true) then
+      if rec then releaseRecord(rec) end
+      pc:bypass("tree mode changed while loading")
+      return nil
+    end
     if rec then
       rec.buildMs = (now() - t0) * 1000
       rec.used = now()
@@ -1639,7 +1652,9 @@ function Scene:_pcFinish(ctx, rec, input, plan)
   local pc = self.precache
   local PCM = PCmod.M
   local why
-  if rec.mesher ~= "FrlgMesher" then why = "mesher " .. tostring(rec.mesher)
+  if ctx.treeGeneration~=VoxelTrees.generation() or ctx.voxelTreeMode~=(VoxelTrees.active()==true) then why = "tree mode changed"
+  elseif not ctx.voxelTreeMode and (rec.frVoxelTrees or ctx.voxelTrees) then why = "unexpected voxel trees"
+  elseif rec.mesher ~= "FrlgMesher" then why = "mesher " .. tostring(rec.mesher)
   elseif rec.healerFR then pc:bypass("healer rig"); rec.pcInfo = nil; return
   elseif plan ~= ctx.plan then why = "plan changed"
   elseif self:_pcSettings(input, plan) ~= ctx.settings then why = "settings changed"

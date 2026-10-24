@@ -96,9 +96,9 @@ M.LOOK_SPECS = {
     choices = { { "FULL", "full" }, { "DEFER", "defer" }, { "OFF", "off" } }, default = "off" },
   { id = "frlgvoxel:sun-shadows", key = "perf_sun_shadows", label = "SUN SHADOWS", kind = "choice",
     choices = { { "MOVING", "moving" }, { "FIXED", "fixed" }, { "OFF", "off" } }, default = "fixed" },
-  { id = "frlgvoxel:voxel-trees", key = "fr_trees", label = "VOXEL TREES", kind = "choice",
-    choices = { { "SHEETS", "sheet" }, { "VOXEL", "voxel" } }, default = "sheet" },
 }
+M.LOOK_SPECS[#M.LOOK_SPECS+1]={id="frlgvoxel:voxel-trees",key="fr_trees",label="VOXEL TREES",kind="choice",
+ choices={{"SHEETS","sheet"},{"VOXEL","voxel"}},default="sheet"}
 M.SPEED_GROUP = { id = "group.vroutspeed", label = "OUTDOOR SPEED" }
 M.SPEED_SPECS = {
   { id = "frlgvoxel:frame-hoist", key = "perf_frame_hoist", label = "FRAME HOIST", kind = "toggle", default = true },

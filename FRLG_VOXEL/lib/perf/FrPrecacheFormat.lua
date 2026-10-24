@@ -16,7 +16,7 @@
 local F = {}
 
 F.MAGIC = "FRPC"
-F.VERSION = 5 -- persisted native tree anchor streams; older records rebuild safely
+F.VERSION = 6 -- native anchors plus bounded CPU voxel templates/placements; rebuild incompatible records
 F.PART_TARGET = 256 * 1024      -- raw bytes per data part (a larger single blob gets a part of its own)
 F.SEG_VERTS = 4096              -- vertices per stored / uploaded segment (matches Scene.SLICE_VERTS)
 F.MAX_WRITE = 64 * 1024 * 1024  -- mod.cache:write limit (ImportAccess.MAX_CACHE_WRITE_BYTES)

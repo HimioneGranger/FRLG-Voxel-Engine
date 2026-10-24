@@ -3,9 +3,10 @@
 -- A record is valid only for the exact inputs that produced it. The key is
 -- the md5 of these parts, joined with "|":
 --   format   "frpc1" + the game (firered / leafgreen)  + record kind + scene key
---   code     md5 over every FRLG_VOXEL file under lib/ and assets/ (Lua, data, textures) and main.lua (and
---            manifest.json), by path and content, read through mod:list /
---            mod:read: any edit of the mod invalidates every record
+--   code     scoped record-producer fingerprint; unrecognized files remain
+--            included. Explicit presentation/audio exemptions live in
+--            FrPrecacheDependencies. Verified identical producer releases can
+--            retain an existing legacy digest without altering record headers.
 --   engine   the scalar fields of src.core.Version (engine release, ROM cache
 --            generation, ...) and the LOVE version
 --   atlas    the engine's own atlas identity for the map's tileset pair: md5 of
@@ -19,6 +20,9 @@
 --            BUILD SLICING, mask plan
 -- Draw range, the other OUTDOOR SPEED / LOOK switches and the grass shape do
 -- not change the bytes of a record, so they are not part of the key.
+local V = ...
+local Dependencies = V.require('perf/FrPrecacheDependencies')
+local Reuse = V.require('perf/FrPrecacheReuse')
 local K = {}
 
 K.FORMAT = "frpc4" -- Lab 59 v4: frpc3 = classification reads canonical art (day pixels, animation frame 0); Lab 58: SIGNS v2 descriptors (part / verts) change the record contents; v1 sign records are never reused
@@ -30,7 +34,7 @@ local unpack_ = unpack or table.unpack
 local NIL = -1e9
 
 -- ------------------------------------------------------------------ code
--- The mod's file list (sorted): main.lua, manifest.json, every file under lib/ and assets/.
+-- Discover all paths, then apply the bounded producer policy; unknowns stay in.
 function K.listCode(mod)
   local out = { "main.lua", "manifest.json" }
   local function walk(dir)
@@ -48,8 +52,10 @@ function K.listCode(mod)
   end
   walk("lib")
   walk("assets")
-  table.sort(out)
-  return out
+  local filtered={}
+  for _,path in ipairs(out) do if Dependencies.include(path) then filtered[#filtered+1]=path end end
+  table.sort(filtered)
+  return filtered
 end
 
 -- Incremental code digest. job = K.codeJob(mod); repeat done = job:step() until done.
@@ -65,11 +71,14 @@ function CJ:step()
   self.i = self.i + 1
   local rel = self.list[self.i]
   if rel == nil then
-    self.digest = md5hex(table.concat(self.acc, "\n"))
+    self.scopedDigest = md5hex(table.concat(self.acc, "\n"))
+    local ok,legacy=pcall(V.require,'perf/FrPrecacheLegacy')
+    self.digest=Reuse.select(self.mod,self.scopedDigest,K.engineDigest(),K.gameId(),ok and legacy or nil)
     return true
   end
   local ok, src = pcall(self.mod.read, self.mod, rel)
   if ok and type(src) == "string" then
+    src=Dependencies.content(rel,src)
     self.acc[#self.acc + 1] = rel .. ":" .. #src .. ":" .. md5hex(src)
     self.files = self.files + 1
     self.bytes = self.bytes + #src

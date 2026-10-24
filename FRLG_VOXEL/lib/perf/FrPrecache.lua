@@ -31,16 +31,19 @@
 -- Prior art, ideas only (no code shared): the in-house Emerald prebake design.
 local V = ...
 local F = V.require("perf/FrPrecacheFormat")
+local CacheIO = V.require("perf/FrPrecacheIO")
 local K = V.require("perf/FrPrecacheKey")
 local Store = V.require("perf/FrPrecacheStore")
 local Shaders = V.require("render/Shaders")
 local Light = V.require("render/Light")
 local Solar = V.require("render/SolarShadows")
 local LightingRuntime = V.require("render/FrLightingRuntime")
+local VoxelTreeCache = V.require("perf/FrVoxelTreeCache")
 
 local PC = {}
 PC.__index = PC
 
+PC.BULK_PART_TARGET = 2 * 1024 * 1024 -- preparation only; stored segments/schema unchanged
 PC.CAPTURE_MS = 2.0      -- longest capture slice
 PC.FLUSH_MIN_MS = 1.5    -- do no cache work in a frame with less than this left
 PC.PACK_VERTS = 192      -- vertices read back between checkpoints
@@ -366,6 +369,8 @@ function PC:_encodeHeader(m, tick)
   section(m.grass)
   section(m.shell)
   section(m.signFaces) -- Lab 57 SIGNS: the mesher's sign faces (nil = the build had no prepared signs)
+  w:u8(m.voxelTreeMode and 1 or 0)
+  section(m.voxelTrees)
   w:u16(#m.parts)
   for _, p in ipairs(m.parts) do
     w:u32(p.stored); w:u32(p.raw); w:raw(p.md5)
@@ -480,6 +485,10 @@ function PC:_decodeHeader(hdr, full, tick)
   m.shell = section()
   m.signFaces = section()
   if m.signFaces ~= nil and type(m.signFaces) ~= "table" then F.fail("sign faces") end
+  local voxelMode=r:u8();if voxelMode>1 then F.fail("voxel tree mode") end
+  m.voxelTreeMode=voxelMode==1
+  m.voxelTrees=section()
+  if m.voxelTrees and not m.voxelTreeMode then F.fail("voxel data in sheet mode") end
   local np = r:u16()
   if np > F.MAX_PARTS then F.fail("too many parts") end
   for i = 1, np do
@@ -507,6 +516,7 @@ function PC:_decodeHeader(hdr, full, tick)
   if m.maskKind == M_MOVING and m.fieldRef.len ~= m.fw * m.fh * 16 then F.fail("field bytes") end
   if m.heightsMode > 0 and (type(m.heights) ~= "table" or #m.heights ~= m.w * m.h) then F.fail("heights size") end
   if m.supportRamps then PC.heightFunction(m.heights,m.w,m.h,m.supportRamps) end
+  if m.voxelTrees then VoxelTreeCache.validateStored(m.voxelTrees,m.pair,m.parts,tick) end
   return m
 end
 
@@ -575,6 +585,7 @@ function PC:_load(scene, rk, full, input, plan, host, hdr)
   if m.w ~= input.width or m.h ~= input.height or m.pair ~= input.pair
       or (m.isBorder or false) ~= (input.isBorder or false) then F.fail("input shape") end
   if m.mesher ~= "FrlgMesher" then F.fail("mesher") end
+  if m.voxelTreeMode~=(host.voxelTreeMode==true) then F.fail("tree mode mismatch") end
   if scene.retroGrass and not m.retro then F.fail("no grass cells") end
   local rec = {
     key = m.key, pair = m.pair, w = m.w, h = m.h, originX = m.originX, originY = m.originY,
@@ -697,8 +708,6 @@ function PC:_load(scene, rk, full, input, plan, host, hdr)
   end
   if m.alphaState == 1 then rec.shadowAlpha = false
   elseif m.alphaState == 2 then rec.shadowAlpha = { hidden = m.alphaHidden, capped = m.alphaCapped } end
-  P:close()
-  host.P = nil
   host.yield()
   -- tall grass and the glass emissive masks: the same calls, in the same order, as a live build
   if m.glassSummary then rec.glass = m.glassSummary end
@@ -723,6 +732,20 @@ function PC:_load(scene, rk, full, input, plan, host, hdr)
     if gd.underW and gd.under and #gd.under > 0 then scene.emissive:addGlass(input.pair, "under", gd.underW, gd.underH, gd.under) end
     if gd.overW and gd.over and #gd.over > 0 then scene.emissive:addGlass(input.pair, "over", gd.overW, gd.overH, gd.over) end
   end
+  if m.voxelTrees then
+    if not scene.voxelTrees then F.fail("voxel tree renderer unavailable") end
+    local trees=VoxelTreeCache.restore(m.voxelTrees,input.pair,m.parts,function(ref)
+      local view=P:view(ref)
+      local ok,bytes=pcall(view.getString,view)
+      view:release() -- the temporary view must not retain its decompressed part
+      if not ok then error(bytes,0) end
+      return bytes
+    end,host.yield)
+    rec.tris=rec.tris+scene.voxelTrees:build(rec,trees)
+    host.yield()
+  end
+  P:close()
+  host.P=nil
   -- Lab 57 SIGNS, the LAST step (nothing after it can fail): Scene prepared this build's sign textures before the
   -- mesher; the record carries the faces the mesher emitted, so the textured quads are rebuilt exactly as a live
   -- build does (SignRuntime.upload releases a prepared texture without a face). The sign key digest makes
@@ -798,6 +821,14 @@ local function pendingBytes(info)
   local n = info.maskBytes and #info.maskBytes or 0
   local g = info.glassData
   if g then n = n + 8 * ((g.under and #g.under or 0) + (g.over and #g.over or 0)) end
+  -- Foreground stamps can be shared, but CPU-worker restores own fresh arrays.
+  -- Conservatively budget both; one oversized bounded record may run alone.
+  if info.voxelTrees then
+    n=n+#info.voxelTrees.trees*128
+    for _,stamp in pairs(info.voxelTrees.stamps) do
+      n=n+(#stamp.under+#stamp.over)*256
+    end
+  end
   return n
 end
 
@@ -833,20 +864,32 @@ function PC:_tick()
   if self.clock() >= self._stop then coroutine.yield() end
 end
 
--- One cache:write per frame: yield right after it.
+-- One bounded worker write at a time; yield until its acknowledgement.
 function PC:_write(rel, data)
   if #data > F.MAX_WRITE then F.fail("write too large") end
-  local w0 = self.clock()
-  local ok, res, err = pcall(self.cache.write, self.cache, rel, data)
-  local wms = (self.clock() - w0) * 1000
+  local c = self.cur
+  if not c.io then
+    local io, why = CacheIO.new(self.mod, c.rk, self.clock)
+    if not io then F.fail("write failed: " .. tostring(why)) end
+    c.io = io
+  end
+  local bytes = #data
+  local ok, id = pcall(c.io.submit, c.io, rel, data)
+  data = nil -- Channel owns the sole queued payload while the UI keeps pumping.
+  if not ok then F.fail("write failed: " .. tostring(id)) end
+  repeat
+    coroutine.yield()
+    local why = c.io:poll()
+    if why then F.fail("write failed: " .. tostring(why)) end
+    if c.io.terminal and not c.io.ack then F.fail("write failed: worker stopped") end
+  until c.io.ack and c.io.ack.id == id
+  local wms = c.io.ack.ms or 0
   if wms > (self.stats.writeMsMax or 0) then self.stats.writeMsMax = wms end
-  if wms > (self.cur.writeMsMax or 0) then self.cur.writeMsMax = wms end
-  if not ok or res == nil or res == false then F.fail("write failed: " .. tostring(ok and err or res)) end
-  self.stats.bytesWritten = self.stats.bytesWritten + #data
-  self.cur.written[#self.cur.written + 1] = rel
-  coroutine.yield()
+  if wms > (c.writeMsMax or 0) then c.writeMsMax = wms end
+  self.stats.bytesWritten = self.stats.bytesWritten + bytes
+  c.written[#c.written + 1] = rel
+  self:_tick()
 end
-
 function PC:_flushPart()
   local c = self.cur
   if c.rawLen == 0 then return end
@@ -861,7 +904,8 @@ end
 
 function PC:_addBlob(raw)
   local c = self.cur
-  if c.rawLen > 0 and c.rawLen + #raw > F.PART_TARGET then self:_flushPart() end
+  local target = self.store.bulk and PC.BULK_PART_TARGET or F.PART_TARGET
+  if c.rawLen > 0 and c.rawLen + #raw > target then self:_flushPart() end
   local ref = { part = #c.parts + 1, off = c.rawLen, len = #raw }
   c.raw[#c.raw + 1] = raw
   c.rawLen = c.rawLen + #raw
@@ -896,8 +940,8 @@ function PC:_captureBody(item)
   local c = self.cur
   local m = { full = info.full, key = rec.key, w = rec.w, h = rec.h, originX = rec.originX or 0, originY = rec.originY or 0,
     layoutVersion = rec.layoutVersion, sig = rec.sig, pair = rec.pair, mesher = rec.mesher,
-    tris = rec.baseTris or rec.tris, aoOpaque = rec.aoOpaque, aoUnder = rec.aoUnder, openAir = rec.openAir,
-    isBorder = rec.isBorder, maskPlan = info.maskPlan, layers = {}, retro = info.retro }
+    tris = rec.baseTris or (rec.tris-(info.voxelTreeTris or 0)), aoOpaque = rec.aoOpaque, aoUnder = rec.aoUnder, openAir = rec.openAir,
+    isBorder = rec.isBorder, maskPlan = info.maskPlan, layers = {}, retro = info.retro, voxelTreeMode=info.voxelTreeMode==true }
   -- masks
   m.maskKind = M_NONE
   if info.maskBytes then
@@ -993,6 +1037,12 @@ function PC:_captureBody(item)
     m.grass = { xs = xs, ki = ki, kinds = kinds }
   end
   if info.signFaces ~= nil then m.signFaces = info.signFaces end
+  if info.voxelTrees then
+    if not m.voxelTreeMode then F.fail("voxel data in sheet capture") end
+    m.voxelTrees=VoxelTreeCache.capture(info.voxelTrees,rec.pair,function(bytes)
+      return self:_addBlob(bytes)
+    end,function()self:_tick()end)
+  end
   if rec.shell then
     local si = rec.shellInfo
     if not si then F.fail("shell without info") end
@@ -1013,7 +1063,8 @@ end
 function PC:_abortCapture(why)
   local c = self.cur
   if c then
-    for _, rel in ipairs(c.written) do self.store.pendingDelete[#self.store.pendingDelete + 1] = rel end
+    if c.io then c.io:cancel()
+    else for _, rel in ipairs(c.written) do self.store.pendingDelete[#self.store.pendingDelete + 1] = rel end end
   end
   local item = self.item
   if item and item.rec then item.rec.pcInfo = nil end
@@ -1022,6 +1073,7 @@ end
 
 function PC:_finishCapture(bytes, nparts)
   local c, item = self.cur, self.item
+  if c.io then c.io:commit() end
   local st = self.stats
   local ms = (self.clock() - c.t0) * 1000
   st.saved = st.saved + 1
@@ -1045,6 +1097,7 @@ end
 -- Called once per frame from Scene:pump, only when no build job runs. `stop` = clock time the frame's
 -- build budget ends.
 function PC:pump(scene, stop)
+  local ioAvailable = CacheIO.available()
   if not self:enabled() then
     if #self.pending > 0 or self.co then self:dropPending() end
     -- deletes already promised (CLEAR, eviction, a corrupt record) still complete while the cache is OFF
@@ -1059,6 +1112,7 @@ function PC:pump(scene, stop)
   -- that belongs to the other Scene is neither continued nor dropped here (a paused precache keeps its place).
   if self.co and self.item and self.item.scene ~= scene then return end
   if not self.co then
+    if not ioAvailable then return end
     local item
     local i = 1
     while i <= #self.pending do
@@ -1137,7 +1191,7 @@ function PC:busy(scene)
 end
 
 -- Forget one Scene's waiting and running captures (skip / switch off); the other Scene's are left alone.
--- The files of an unfinished capture are queued for deletion by _abortCapture.
+-- The worker cleans unfinished captures after any in-flight write has returned.
 function PC:dropFor(scene)
   for i = #self.pending, 1, -1 do
     local it = self.pending[i]

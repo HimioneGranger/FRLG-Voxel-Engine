@@ -1,7 +1,8 @@
 local V=...
 local Flora=V.require("mesh/FrlgFlora")
 local Models=V.require("mesh/FrlgTreeModels")
-local M={VERSION="fr-voxel-tree 1"}
+local Compiled=V.require("mesh/FrlgCompiledTree")
+local M={VERSION="fr-voxel-tree 2"}
 
 M.PROFILE_ROWS=2
 M.FACING_SPREAD=0.5
@@ -27,8 +28,8 @@ local FACES={
   {axis=3,step=-1,u=1,v=2,source="projected",normal={0,0,-1}},
   {axis=1,step=1,u=3,v=2,source="wrapped",normal={1,0,0}},
   {axis=1,step=-1,u=3,v=2,source="wrapped",normal={-1,0,0}},
-  {axis=2,step=-1,u=1,v=3,source="projected",normal={0,1,0}},
-  {axis=2,step=1,u=1,v=3,source="wrapped",normal={0,-1,0}},
+  {axis=2,step=-1,u=1,v=3,source="top",normal={0,1,0}},
+  {axis=2,step=1,u=1,v=3,source="bottom",normal={0,-1,0}},
 }
 
 local function channels(colour) return floor(colour/65536)%256,floor(colour/256)%256,colour%256 end
@@ -64,7 +65,8 @@ end
 function M.models(atlas)
   local found={}
   for _,model in ipairs(Models) do
-    if M.fingerprint(atlas,model.fingerprint.mid)==model.fingerprint.hash then found[#found+1]=model end
+    if M.fingerprint(atlas,model.fingerprint.mid)==model.fingerprint.hash
+      and (not model.compilerProfile or Compiled.matches(atlas)) then found[#found+1]=model end
   end
   return found
 end
@@ -169,7 +171,7 @@ end
 local function modelGrid(atlas,model,backdrop)
   local rows=modelRows(model)
   local width=#model.rows[1].mids*M.ART_PIXELS_PER_TILE
-  local grid={width=width,height=#rows,colour={},source={},lx={},ly={},layer={},radius=model.radius,bodyTop=#rows}
+  local grid={width=width,height=#rows,colour={},source={},lx={},ly={},layer={},radius=model.radius,bodyTop=#rows,canopyLastRow=model.canopyLastRow,undersideRise=model.undersideRise,hemColumns=model.hemColumns,boughModel=model.boughModel}
   local sources,tips,colours={},{},{}
   for py,row in ipairs(rows) do
     if not row.above and grid.bodyTop==#rows then grid.bodyTop=py-1 end
@@ -232,20 +234,71 @@ end
 local function splitShadow(grid)
   local bottom=crownBottom(grid,litThreshold(grid.colour))
   if not bottom or bottom==grid.height-1 then return end
+  grid.crownBottom=bottom
+  grid.hemStart=max(grid.bodyTop or 0,bottom-M.ART_PIXELS_PER_TILE+1)
   local width,trunk=grid.width,{}
   local outline=trunkOutline(grid,bottom)
   for py=bottom+1,grid.height-1 do
     for px=0,width-1 do
       local colour=grid.colour[py*width+px+1]
       if colour and not isGreen(colour) and not outline[colour] then
-        trunk[px]=trunk[px] or {top=py,bottom=py}
+        trunk[px]=trunk[px] or {top=py,bottom=py,samples={}}
         trunk[px].bottom=py
+        trunk[px].samples[#trunk[px].samples+1]=py
       end
     end
   end
   if next(trunk)==nil then return end
   local artLength=0
-  for _,column in pairs(trunk) do artLength=max(artLength,column.bottom-column.top+1) end
+  local firstBark=grid.height
+  for _,column in pairs(trunk) do
+    artLength=max(artLength,column.bottom-column.top+1)
+    firstBark=min(firstBark,column.top)
+  end
+  for py=bottom+1,firstBark do
+    local found=false
+    for px=floor(width/4),ceil(3*width/4)-1 do
+      local colour=grid.colour[py*width+px+1]
+      if colour then local r,g=channels(colour);if g<=r then firstBark=py;found=true;break end end
+    end
+    if found then break end
+  end
+  -- Find the baked ground-shadow band using its dominant leaf colour beside
+  -- the first bark row, as the native foliage pass does. Dark hanging leaves
+  -- above that band must not be discarded along with the ground shadow.
+  local counts,dark,darkCount={},nil,0
+  for px=0,width-1 do
+    local colour=grid.colour[firstBark*width+px+1]
+    if colour and isGreen(colour) then
+      counts[colour]=(counts[colour] or 0)+1
+      if counts[colour]>darkCount then dark,darkCount=colour,counts[colour] end
+    end
+  end
+  local shadowStart=firstBark
+  local function shadowShare(py)
+    local count,total=0,0
+    for px=0,width-1 do
+      local colour=grid.colour[py*width+px+1]
+      if colour and isGreen(colour) then total=total+1;if colour==dark then count=count+1 end end
+    end
+    return total>0 and count/total or 0
+  end
+  if dark then
+    while shadowStart>bottom+1 and shadowShare(shadowStart-1)>=.5 do shadowStart=shadowStart-1 end
+  end
+  -- Fingerprinted families supply an art-reviewed leaf/shadow boundary. Keep
+  -- every native opaque leaf inside it; dark color alone is not an alpha hole.
+  if grid.canopyLastRow then shadowStart=grid.canopyLastRow+1 end
+  local function leafAt(index)
+    local leaf,above=grid.colour[index],grid.colour[index-width]
+    return leaf and isGreen(leaf) and (grid.canopyLastRow or leaf~=dark or (above and above~=dark and isGreen(above)))
+  end
+  local hemBottom=bottom
+  for py=bottom+1,shadowStart-1 do for px=0,width-1 do
+    if leafAt(py*width+px+1) then hemBottom=max(hemBottom,py) end
+  end end
+  -- Preserve the installed model height. The authored canopy boundary removes
+  -- the baked ground shadow; the bottom surface provides stem clearance.
   local trunkLength=artLength+M.TRUNK_EXTRA_PIXELS
   local copy={colour={},source={},lx={},ly={},layer={}}
   for key,list in pairs(copy) do for index,value in pairs(grid[key]) do list[index]=value end end
@@ -253,8 +306,17 @@ local function splitShadow(grid)
     for px=0,width-1 do
       local index,column=py*width+px+1,trunk[px]
       local step=py-bottom-1
-      local from=column and step<trunkLength and min(column.top+floor(step*artLength/trunkLength),column.bottom)
-      if from then
+      -- Source bark rows may have leaf/shadow gaps between them. Stretch
+      -- actual bark texels, never those intervening green shadow texels.
+      local from=column and step<trunkLength and column.samples[min(#column.samples,floor(step*#column.samples/trunkLength)+1)]
+      -- The dark leaf hem hangs below the bright crown. It is canopy art,
+      -- not part of the ground shadow being separated from the trunk.
+      local leaf=copy.colour[index]
+      local above=copy.colour[index-width]
+      local leafEdge=leaf and isGreen(leaf) and (grid.canopyLastRow or leaf~=dark or (above and above~=dark and isGreen(above)))
+      if (py<shadowStart or (grid.hemColumns and py<=(grid.hemColumns[px]or -1))) and leafEdge then
+        setPixel(grid,index,copy.colour[index],copy.source[index],copy.lx[index],copy.ly[index],copy.layer[index])
+      elseif from then
         local fromIndex=from*width+px+1
         setPixel(grid,index,copy.colour[fromIndex],copy.source[fromIndex],copy.lx[fromIndex],copy.ly[fromIndex],
           copy.layer[fromIndex])
@@ -268,7 +330,8 @@ local function splitShadow(grid)
   for _ in pairs(trunk) do columns=columns+1 end
   for colour in pairs(outline) do outlineColours[#outlineColours+1]=string.format("%06x",colour) end
   table.sort(outlineColours)
-  grid.trunk={art=artLength,shown=trunkLength,columns=columns,outline=outlineColours}
+  grid.trunk={art=artLength,shown=trunkLength,columns=columns,outline=outlineColours,
+    crownBottom=bottom,hemBottom=hemBottom,firstBark=firstBark,shadowStart=shadowStart}
 end
 
 local function dropGroundRing(grid)
@@ -311,60 +374,222 @@ local function filledProfile(halves,rows,reach)
   return depths
 end
 
-local function litColumn(shades,dx,dz)
-  local length=sqrt(dx*dx+dz*dz)
-  local facing=length>0 and (dx*M.LIGHT[1]+dz*M.LIGHT[2])/length or 0
-  local index=floor((facing+1)/2*#shades)+1
-  return shades[max(1,min(#shades,index))].column
-end
-
+-- Semantic bough lofts: convex leafy tops, draped rims, raised inner undersides.
+-- Source image y is sampled through an inferred oblique projection, not used
+-- as the physical height of a painted leaf cap.
+-- Semantic bough lofts: convex leafy tops, draped rims, raised inner undersides.
+-- Source image y is sampled through an inferred oblique projection, not used
+-- as the physical height of a painted leaf cap.
+-- Semantic bough lofts: convex leafy tops, draped rims, raised inner undersides.
+-- Source image y is sampled through an inferred oblique projection, not used
+-- as the physical height of a painted leaf cap.
 local function volume(grid,size)
-  local inset=floor(size/2)
   local radius=grid.radius/size
   local dims={ceil(grid.width/size),ceil(grid.height/size),ceil(2*radius)}
-  local axis=dims[1]/2
-  local function pixel(vx,vy) return (vy*size+inset)*grid.width+vx*size+inset+1 end
-  local function solidAt(vx,vy) return grid.colour[pixel(vx,vy)]~=nil end
-  local halves={}
-  for vy=0,dims[2]-1 do
-    halves[vy]=0
-    for vx=0,dims[1]-1 do
-      if solidAt(vx,vy) then halves[vy]=max(halves[vy],abs(vx+0.5-axis)+0.5) end
+  local sources={projected={},wrapped={},top={},bottom={}}
+  local form=grid.boughModel
+  local green,bark,leafPalette={},{},{}
+  local darkest,darkValue=nil,math.huge
+  for py=0,grid.height-1 do
+    green[py]={};bark[py]={}
+    for px=0,grid.width-1 do
+      local k=py*grid.width+px+1;local colour=grid.colour[k]
+      if colour then
+        local list=isGreen(colour)and green[py]or bark[py]
+        list[#list+1]=k
+        if isGreen(colour)then leafPalette[colour]=true end
+        if isGreen(colour)and brightness(colour)<darkValue then darkest,darkValue=k,brightness(colour)end
+      end
     end
   end
-  local depths=filledProfile(halves,dims[2],M.PROFILE_ROWS)
-  local sources={wrapped={},projected={}}
-  for vy=0,dims[2]-1 do
-    local half=halves[vy]
-    if half>0 then
-      local shades,nearest={},{}
-      for vx=0,dims[1]-1 do
-        if solidAt(vx,vy) then shades[#shades+1]={column=vx,light=brightness(grid.colour[pixel(vx,vy)])} end
-      end
-      table.sort(shades,function(a,b) if a.light~=b.light then return a.light<b.light end return a.column<b.column end)
-      for vx=0,dims[1]-1 do
-        nearest[vx]=vx
-        for step=0,dims[1] do
-          if vx-step>=0 and solidAt(vx-step,vy) then nearest[vx]=vx-step;break end
-          if vx+step<dims[1] and solidAt(vx+step,vy) then nearest[vx]=vx+step;break end
-        end
-      end
-      local halfDepth=min(depths[vy],radius)
-      for column=max(0,floor(axis-half)),min(dims[1]-1,ceil(axis+half)-1) do
-        local dx=(column+0.5-axis)/half
-        for vz=0,dims[3]-1 do
-          local dz=(vz+0.5-radius)/halfDepth
-          if dx*dx+dz*dz<=1 then
-            local index=(vz*dims[2]+vy)*dims[1]+column+1
-            local wrapped=litColumn(shades,dx,dz)
-            sources.wrapped[index]=pixel(wrapped,vy)
-            sources.projected[index]=abs(dz)>=M.FACING_SPREAD*abs(dx) and pixel(nearest[column],vy) or pixel(wrapped,vy)
+  local cache={}
+  local function sourceAt(px,py,isBark)
+    px=max(0,min(grid.width-1,floor(px)));py=max(0,min(grid.height-1,floor(py)))
+    local key=(isBark and grid.width*grid.height or 0)+py*grid.width+px+1
+    if cache[key]then return cache[key]end
+    local lists=isBark and bark or green
+    for dy=0,grid.height do
+      for _,sy in ipairs{py-dy,py+dy}do
+        if lists[sy]and #lists[sy]>0 then
+          local best,distance=nil,math.huge
+          for _,k in ipairs(lists[sy])do
+            local d=abs((k-1)%grid.width-px)
+            if d<distance then best,distance=k,d end
           end
+          cache[key]=best;return best
         end
       end
     end
+  end
+  -- Forest hidden underside uses one existing native leaf palette step of
+  -- shade. The light/dark pattern stays on the same original mass, and the
+  -- output still points to a real retained leaf pixel, never ground shadow.
+  local shadedCache={}
+  local function shadedNativeLeaf(pixel)
+    if not form.undersideShadeStep or not pixel then return pixel end
+    if shadedCache[pixel]then return shadedCache[pixel]end
+    local colour=grid.colour[pixel]
+    local level=brightness(colour);local targetLevel=-math.huge
+    local targetColour
+    for c in pairs(leafPalette)do
+      local b=brightness(c)
+      if b<level and b>targetLevel then targetLevel,targetColour=b,c end
+    end
+    if not targetColour then shadedCache[pixel]=pixel;return pixel end
+    local x=(pixel-1)%grid.width;local y=floor((pixel-1)/grid.width)
+    local best,distance=pixel,math.huge
+    for py=0,grid.height-1 do for _,k in ipairs(green[py])do
+      if grid.colour[k]==targetColour then
+        local dx=(k-1)%grid.width-x;local dy=py-y;local d=dx*dx+dy*dy
+        if d<distance then best,distance=k,d end
+      end
+    end end
+    shadedCache[pixel]=best;return best
+  end
+  local function rimAt(points,angle)
+    for i=1,#points-1 do
+      local a,b=points[i],points[i+1]
+      if angle>=a[1]and angle<=b[1]then
+        local t=(angle-a[1])/(b[1]-a[1])
+        return a[2]*(1-t)+b[2]*t,a[3]*(1-t)+b[3]*t
+      end
+    end
+    return 1,0
+  end
+  local columns={}
+  for vx=0,dims[1]-1 do for vz=0,dims[3]-1 do
+    local xp=(vx+.5)*size-grid.width/2
+    local zp=(vz+.5-radius)*size
+    local spans={}
+    for _,bough in ipairs(form.boughs or {})do
+      local xx,zz=xp/bough.rx,zp/bough.rz
+      local angle=math.atan2(xx,zz)*180/math.pi
+      local reach,hang=rimAt(bough.rimShape,angle)
+      local rho=sqrt(xx*xx+zz*zz)/reach
+      if rho<=1 then
+        local tip=min(.45,size*.75/min(bough.rx,bough.rz))
+        local r=max(0,(rho-tip)/(1-tip))
+        local round=sqrt(max(0,1-r*r))
+        local q=bough.pointed and 1-r^.9 or round
+        -- Both surfaces roll into the same outer edge. The whole curved rim
+        -- droops, instead of ending a nonzero-thickness slab in a vertical wall.
+        local middle=bough.rim-hang*r^3
+        local upper=middle+(bough.apex-bough.rim)*q
+        local lower=middle-bough.lowerDepth*round
+        spans[#spans+1]={lower=lower,upper=max(lower,upper)}
+      end
+    end
+    -- Explicit native-facing cap, shoulders, central drape and pendant ends.
+    -- Each has a convex top and underside. They meet at a rolled outer edge;
+    -- their overlaps provide hidden connections without a whole-tree shell.
+    for _,mass in ipairs(form.masses or {})do
+      local dx,dz=xp-mass.x,zp-mass.z
+      -- Optional quarter-turn is an inverse local transform. Legacy masses
+      -- have no turn, so General retains its exact previous calculation.
+      if mass.quarter==1 then dx,dz=-dz,dx
+      elseif mass.quarter==2 then dx,dz=-dx,-dz
+      elseif mass.quarter==3 then dx,dz=dz,-dx end
+      local xx,zz=dx/mass.rx,dz/mass.rz
+      local rho=sqrt(xx*xx+zz*zz)
+      if rho<=1 then
+        local tip=min(.45,size*.75/min(mass.rx,mass.rz))
+        local r=max(0,(rho-tip)/(1-tip))
+        local round=sqrt(max(0,1-r*r))
+        local front=max(0,zz)
+        if mass.radialDrape then front=r
+        elseif mass.drapeX then
+          front=max(0,xx*mass.drapeX+zz*mass.drapeZ)
+        end
+        local middle=mass.h-(mass.drape or 0)*front*front*r
+        spans[#spans+1]={lower=middle-mass.lower*(mass.lowerCurvePower and round^mass.lowerCurvePower or round),materialQuarter=mass.quarter,
+                        upper=middle+mass.upper*(mass.pointed and 1-r^.9 or round)}
+      end
+    end
+    columns[vz*dims[1]+vx+1]={x=xp,z=zp,spans=spans}
+  end end
+  for vy=0,dims[2]-1 do
+    local height=grid.height-(vy+.5)*size
+    if height>=0 then for vx=0,dims[1]-1 do for vz=0,dims[3]-1 do
+      local col=columns[vz*dims[1]+vx+1]
+      local inside=false
+      local undersideSpan
+      for _,span in ipairs(col.spans)do
+        if height>=span.lower and height<=span.upper then
+          inside=true
+          if not form.undersideMassReturn then break end
+          -- Lowest containing span owns this union's downward boundary.
+          if not undersideSpan or span.lower<undersideSpan.lower then undersideSpan=span end
+        end
+      end
+      local stem=col.x*col.x+col.z*col.z<=form.rootRadius*form.rootRadius and height<=form.rootTop
+      local index=(vz*dims[2]+vy)*dims[1]+vx+1
+      if inside then
+        local sy=form.artBase-height*form.artVertical+abs(col.z)*form.artDepth
+        local front=sourceAt(grid.width/2+col.x,sy,false)
+        local aspect=grid.width/(2*grid.radius)
+        local sideY=form.artBase-height*form.artVertical+abs(col.x/aspect)*form.artDepth
+        local side=sourceAt(grid.width/2+col.z*aspect,sideY,false)
+        sources.projected[index]=front;sources.wrapped[index]=side
+        -- Continue native top artwork toward the nearest cardinal side.
+        -- Forest opts in; the legacy/General top channel stays unchanged.
+        local top=front
+        if form.cardinalTop and abs(col.x)>abs(col.z) then top=side end
+        sources.top[index]=top
+        local bottom=darkest or front
+        if form.undersideMassReturn and undersideSpan then
+          -- Continue the original mass's native leaf coat around its existing
+          -- underside. Use that mass's local envelope, never another bough's
+          -- top or a globally folded hem. Hidden texture return is inferred.
+          local sampleHeight=undersideSpan.lower+(undersideSpan.upper-undersideSpan.lower)*form.undersideMassReturn
+          local materialX,materialZ=col.x,col.z
+          local quarter=undersideSpan.materialQuarter
+          if quarter==1 then materialX,materialZ=-col.z,col.x
+          elseif quarter==2 then materialX,materialZ=-col.x,-col.z
+          elseif quarter==3 then materialX,materialZ=col.z,-col.x end
+          local sideFacing=quarter==nil and abs(col.x)>abs(col.z)
+          local u=sideFacing and (grid.width/2+col.z*aspect)or(grid.width/2+materialX)
+          local depth=sideFacing and abs(col.x/aspect)or abs(materialZ)
+          local v=form.artBase-sampleHeight*form.artVertical+depth*form.artDepth
+          bottom=shadedNativeLeaf(sourceAt(u,v,false))or bottom
+        end
+        sources.bottom[index]=bottom
+      elseif stem then
+        local sample
+        if height<form.stemVisible then
+          sample=sourceAt(grid.width/2+col.x,grid.height-1-height/form.stemVisible*5,true)
+        else sample=darkest end
+        if sample then
+          sources.projected[index]=sample;sources.wrapped[index]=sample
+          sources.top[index]=sample;sources.bottom[index]=sample
+        end
+      end
+    end end end
   end
   return sources,dims,radius
+end
+
+local function connectedTree(sources,dims)
+  local cells=sources.projected
+  local visited,largest={},{}
+  local stride=dims[1]*dims[2]
+  for seed in pairs(cells) do if not visited[seed] then
+    local queue={seed};visited[seed]=true;local head=1
+    local function visit(n) if cells[n] and not visited[n] then visited[n]=true;queue[#queue+1]=n end end
+    while head<=#queue do
+      local index=queue[head];head=head+1
+      local k=index-1;local x=k%dims[1];local y=floor(k/dims[1])%dims[2];local z=floor(k/stride)
+      if x>0 then visit(index-1) end;if x<dims[1]-1 then visit(index+1) end
+      if y>0 then visit(index-dims[1]) end;if y<dims[2]-1 then visit(index+dims[1]) end
+      if z>0 then visit(index-stride) end;if z<dims[3]-1 then visit(index+stride) end
+    end
+    if #queue>#largest then largest=queue end
+  end end
+  local keep={};for _,index in ipairs(largest) do keep[index]=true end
+  local removed=0
+  for index in pairs(cells) do if not keep[index] then
+    for _,list in pairs(sources) do list[index]=nil end;removed=removed+1
+  end end
+  return removed
 end
 
 local function greedyFaces(keys,dims,face,slice)
@@ -412,10 +637,12 @@ end
 
 function M.build(atlas,model,size,backdrop)
   size=size or 1
+  if model.compilerProfile=="general-tree" then return Compiled.build(atlas,size) end
   local grid=modelGrid(atlas,model,backdrop or Flora.KEY)
   splitShadow(grid)
   local ring=dropGroundRing(grid)
   local sources,dims,radius=volume(grid,size)
+  local detached=connectedTree(sources,dims)
   local keys,looks={},{}
   for name,list in pairs(sources) do
     keys[name],looks[name]={},{}
@@ -426,11 +653,15 @@ function M.build(atlas,model,size,backdrop)
     end
   end
   local foot=grid.height
+  local bottomPlane=0
+  for index in pairs(sources.projected) do bottomPlane=max(bottomPlane,floor((index-1)/dims[1])%dims[2]+1) end
   local lists,quads={under={},over={}},0
   local function corner(face,plane,u,v)
     local point={}
     point[face.axis],point[face.u],point[face.v]=plane,u,v
-    return point[1]*size-grid.width/2,foot-point[2]*size,point[3]*size-radius*size
+    -- Partial last voxels in the far LOD must end at the same ground anchor.
+    local y=point[2]>=bottomPlane and 0 or max(0,foot-point[2]*size)
+    return point[1]*size-grid.width/2,y,point[3]*size-radius*size
   end
   for _,face in ipairs(FACES) do
     local n=face.normal
@@ -457,7 +688,7 @@ function M.build(atlas,model,size,backdrop)
   for colour in pairs(ring) do ringColours[#ringColours+1]=string.format("%06x",colour) end
   table.sort(ringColours)
   return {under=lists.under,over=lists.over,quads=quads,tris=quads*2,pixels=grid.width,ring=ringColours,height=grid.height,
-    trunk=grid.trunk}
+    trunk=grid.trunk,detached=detached}
 end
 
 local Context={};Context.__index=Context

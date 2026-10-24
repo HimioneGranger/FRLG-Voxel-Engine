@@ -49,12 +49,13 @@ P.HEAP_CEIL_FRAC = 0.6           -- ... but never wait for more than this fracti
 P.CEIL_KB = 600 * 1024
 P.RING_SHARE = 0.3        -- share of a job's progress weight that belongs to its ring
 P.PAUSE_GAP_S = 0.5       -- a gap between two updates longer than this is a pause (menu, battle), not build time
-P.ETA_MIN_WEIGHT = 0.04   -- no time estimate before this share of the work is done
+P.ETA_MIN_JOBS = 3       -- calibrate only from whole jobs completed this run
+P.ETA_WINDOW_JOBS = 8    -- recent weighted throughput; old cold starts age out
 
 local ST_OK, ST_SKIP, ST_FAIL, ST_RETRY = 1, 2, 3, 4
 P.ST = { OK = ST_OK, SKIP = ST_SKIP, FAIL = ST_FAIL, RETRY = ST_RETRY }
 
-local ACTIVE = { check = true, plan = true, tiles = true, run = true, finish = true }
+local ACTIVE = { check = true, plan = true, cpu = true, tiles = true, run = true, finish = true }
 P.ACTIVE = ACTIVE
 
 local floor, min, max = math.floor, math.min, math.max
@@ -134,7 +135,15 @@ local function rawToHex(raw) return love.data.encode("string", "hex", raw) end
 
 function P:_token()
   local pc = self.pc
-  return K.md5hex(table.concat({ "frpp1", tostring(pc.game), tostring(pc.code), tostring(pc.engine) }, "|"))
+  return K.md5hex(table.concat({ "frpp1", tostring(pc.game), tostring(pc.code), tostring(pc.engine), tostring(self.env.variant or "default") }, "|"))
+end
+
+-- Separate mode manifests keep completed sheet/voxel work available across
+-- toggles. The token still binds every entry to the producer and engine.
+function P:_manifestPath(copy)
+  local variant = self.env.variant
+  assert(variant == nil or variant == "vt0" or variant == "vt1", "prepare variant")
+  return Store.DIR .. "prep" .. (variant and "." .. variant or "") .. "." .. copy
 end
 
 -- Load the newer valid copy; keep it only when its token matches. -> true when the manifest is usable
@@ -142,7 +151,7 @@ function P:_loadManifest()
   local cache = self.pc.cache
   local best, sawManifest
   for _, name in ipairs({ "a", "b" }) do
-    local okR, s = pcall(cache.read, cache, Store.DIR .. "prep." .. name)
+    local okR, s = pcall(cache.read, cache, self:_manifestPath(name))
     if okR and type(s) == "string" then
       sawManifest = true
       local okD, m = pcall(decodeManifest, s)
@@ -173,7 +182,7 @@ function P:_saveManifest()
   local okE, data = pcall(encodeManifest, self, self.token)
   if not okE then self.seq = self.seq - 1; return false end
   local target = self.last == "a" and "b" or "a"
-  local okW, res = pcall(pc.cache.write, pc.cache, Store.DIR .. "prep." .. target, data)
+  local okW, res = pcall(pc.cache.write, pc.cache, self:_manifestPath(target), data)
   if okW and res ~= nil and res ~= false then
     self.last = target
     self.dirtyManifest = false
@@ -207,7 +216,7 @@ end
 -- ------------------------------------------------------------------ control
 function P:isActive() return ACTIVE[self.phase] == true end
 -- The screen is shown only once there is work to do, not during the short check of an already complete cache.
-function P:isVisible() return self.phase == "run" or self.phase == "finish" or self.phase == "tiles" end
+function P:isVisible() return self.phase == "run" or self.phase == "finish" or self.phase == "tiles" or self.phase == "cpu" end
 function P:isTerminal() return self.phase == "done" or self.phase == "skipped" or self.phase == "off" or self.phase == "failed" end
 
 -- A new request (the switch turned ON again, or a CLEAR): look at the cache again from the start.
@@ -219,6 +228,15 @@ function P:rearm()
   self.operation = nil
   self.clearFails = true -- the manifest still holds the old counter: forget it when it is loaded
   self.rearmed = self.rearmed + 1
+end
+
+-- Retire only unfinished work when the live tree mode changes. Save under
+-- this driver's frozen mode; never mark an interrupted map finished or spend
+-- retries. PrepareHost creates a fresh driver for the newly selected mode.
+function P:invalidateMode()
+  self:_cleanup()
+  self:_saveManifestSafe()
+  self.phase, self.reason, self.lastUpdate = "off", "tree mode changed", nil
 end
 
 -- Skip for now (B button). Takes effect at the start of the next update.
@@ -236,6 +254,12 @@ function P:progress(out)
   out.name = self.curName
   out.skipping = self.skipReq
   out.reason = self.reason
+  if self.phase == "cpu" and self.background then
+    self.background:poll()
+    out.done,out.total = self.background.done,self.background.total
+    out.frac = out.total > 0 and min(1,out.done/out.total) or 0
+    out.etaSec = -1
+  end
   return out
 end
 
@@ -288,6 +312,27 @@ function P:_tick()
 end
 
 function P:_yieldFrame() coroutine.yield() end
+
+-- Only completed work contributes throughput. In-flight waits and previously
+-- cached maps cannot inflate a partially credited first job into a long ETA.
+function P:_recordEtaJob(weight, startedActiveS)
+  local elapsed = self.activeS - startedActiveS
+  if elapsed <= 0 or weight <= 0 then return end
+  local samples = self.etaSamples
+  samples[#samples + 1] = { weight = weight, seconds = elapsed }
+  if #samples > P.ETA_WINDOW_JOBS then table.remove(samples, 1) end
+end
+
+function P:_estimateEta()
+  local samples = self.etaSamples or {}
+  if self.phase ~= "run" or self.totalWeight <= 0 or #samples < P.ETA_MIN_JOBS then return -1 end
+  local weight, seconds = 0, 0
+  for _, sample in ipairs(samples) do
+    weight, seconds = weight + sample.weight, seconds + sample.seconds
+  end
+  if weight <= 0 then return -1 end
+  return max(0, self.totalWeight - self.doneWeight) * seconds / weight
+end
 
 function P:_say(fmt, ...)
   local ok, s = pcall(string.format, fmt, ...)
@@ -390,6 +435,8 @@ function P:_cancelBuild()
 end
 
 function P:_cleanup()
+  if self.background then self.background:cancel(); self.background = nil end
+  if self.env.backgroundFinished then pcall(self.env.backgroundFinished) end
   local Scene = self.env.scene
   if Scene and Scene._setDeadline then Scene._setDeadline(nil) end
   self:_cancelBuild()
@@ -428,6 +475,10 @@ function P:_pumpOnce(scene)
   end
   self.pumpedFrame = self.frameNo
   self.pc:pump(scene, math.max(self.deadline, now + 0.003))
+  -- An asynchronous storage request cannot advance by polling again within
+  -- this display frame. Return to the renderer until the next update.
+  local cur = self.pc.cur
+  if cur and cur.io and cur.io.pending ~= nil then self:_yieldFrame() end
 end
 
 -- Engine tileset FIRST LOADS (tileset_native.get: palette hash + native_pack decode, 40-80 ms each on the desktop) cannot
@@ -624,6 +675,7 @@ function P:_body(game)
   self.phase = "run"
   self.runStart = self.clock()
   self.activeS = 0
+  self.etaSamples, self.etaSec = {}, -1
   self.jobsSince = 0
   self.lastCheckpoint = self.runStart
   if env.capBytes and pc.capBytes < env.capBytes then self.capSaved = pc.capBytes; pc.capBytes = env.capBytes end
@@ -633,11 +685,30 @@ function P:_body(game)
   self:_say("start: %d of %d maps to build (%d done), code=%s cap=%d MB", #todo, self.total, self.done,
     tostring(pc.code):sub(1, 8), pc.capBytes / 1048576)
   self.baselineKB = (env.gc or collectgarbage)("count")
+  -- The separate CPU worker owns all its jobs before SDL can pause. The
+  -- original scene/GPU writer remains on this foreground coroutine.
+  if env.background then
+    local okB,b = pcall(env.background,game,todo,self)
+    if okB and b then
+      self.background=b
+      -- CPU geometry runs ahead while each canonical record uploads/writes.
+      -- The mesher bridge waits only for its matching CPU map/ring.
+      self.phase="run"
+    else self:_say("background preparation unavailable: %s",tostring(b)) end
+  end
   self:_loadTilesets(game)
   for i, job in ipairs(todo) do
     if self.skipReq or self.storageFailed then break end
+    -- Whole-job weight is valid only when all relevant parts start fresh.
+    -- Resumed map/ring/FAR work retains progress credit but cannot train ETA.
+    local etaWholeJob = not self:_isDone("m:" .. job.id)
+      and not self:_isDone("r:" .. job.id)
+      and (not job.outdoor or not self:_isDone("f:" .. job.id))
+    local jobStartedActiveS = self.activeS
     self:_doJob(job, game)
+    if self.background then self.background:releaseJob(job.id) end
     if self.skipReq then break end
+    if etaWholeJob and not self.storageFailed then self:_recordEtaJob(job.weight, jobStartedActiveS) end
     self.done = self.done + 1
     self.doneWeight = self.doneWeight + job.weight * P.RING_SHARE
     self.jobsSince = self.jobsSince + 1
@@ -651,6 +722,7 @@ function P:_body(game)
     self.dirtyManifest = true
   end
   self.phase = "finish"
+  self.etaSec = -1
   self:_checkpoint(true)
   self:_releaseAll()
   pc:setBulk(false)
@@ -736,13 +808,7 @@ function P:update(game, budgetSec)
     if self.phase == "finish" or ACTIVE[self.phase] then self.phase = "done" end
     return false
   end
-  -- time remaining: wall time per unit of work so far
-  local did = self.doneWeight - (self.startDoneWeight or 0)
-  if self.phase == "run" and self.totalWeight > 0 and (self.doneWeight / self.totalWeight) >= P.ETA_MIN_WEIGHT and did > 0 then
-    self.etaSec = (self.totalWeight - self.doneWeight) * (self.activeS / did)
-  else
-    self.etaSec = -1
-  end
+  self.etaSec = self:_estimateEta()
   return true
 end
 

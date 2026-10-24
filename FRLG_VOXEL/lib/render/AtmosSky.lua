@@ -10,10 +10,9 @@
 -- cards pixel-identical at 12:00). Night is a dark blue zenith/horizon with
 -- a near-black forest/sea base, tuned against the user's reference sheets
 -- (v17/v18) alongside AtmosTime's night grade -- both read the same
--- nightWeight so the sky and the ground darken together. A warm sky-only
--- band runs 17:30-18:30 (30 min either side of the ground blend, DESIGN.md
--- 4.6), so the horizon glows at dusk half an hour before/after the ground
--- light itself finishes blending.
+-- nightWeight so the sky and the ground darken together. Broad warm
+-- sunrise and golden-hour palettes align with the ground's new daylight
+-- transitions rather than disappearing before the selectable holds.
 local V = ...
 local _ = V
 
@@ -38,15 +37,14 @@ AtmosSky.NIGHT = {
   seaBlue = { 0.03, 0.06, 0.13 },
 }
 
--- Warm dusk horizon (17:30-18:30 sky-only band): zenith stays day/night
--- blended, only the horizon and forest/sea bases warm up.
-AtmosSky.DUSK_HORIZON = { 0.92, 0.62, 0.42 }
-AtmosSky.DUSK_START, AtmosSky.DUSK_END = 17.5, 18.5
-
--- Warm dawn horizon, symmetric with dusk, centred on AtmosTime's dawn ramp
--- (04:00-06:00): a thin glow band, strongest right at sunrise (06:00).
-AtmosSky.DAWN_HORIZON = { 0.95, 0.72, 0.55 }
-AtmosSky.DAWN_START, AtmosSky.DAWN_END = 5.5, 6.5
+-- Broad daylight-backed sunrise and golden-hour palettes, aligned with
+-- the shared clock's representative morning07:00/evening17:00 holds.
+AtmosSky.DUSK_HORIZON = { 1.00, 0.62, 0.28 }
+AtmosSky.DUSK_START, AtmosSky.DUSK_PEAK, AtmosSky.DUSK_END = 16, 17, 19.5
+AtmosSky.DUSK_ZENITH = { 0.36, 0.47, 0.73 }
+AtmosSky.DAWN_HORIZON = { 1.00, 0.70, 0.52 }
+AtmosSky.DAWN_START, AtmosSky.DAWN_PEAK, AtmosSky.DAWN_END = 4, 7, 10
+AtmosSky.DAWN_ZENITH = { 0.34, 0.48, 0.79 }
 
 local function clamp01(x) return x < 0 and 0 or (x > 1 and 1 or x) end
 local function lerp3(a, b, t)
@@ -55,10 +53,10 @@ end
 local function mix3(a, b, t) return lerp3(a, b, t) end
 
 local function triangle(x, a, mid, b)
-  -- 0 at a and b, 1 at mid, linear between. a < mid < b.
+  -- 0 at a and b, 1 at mid, smooth between. a < mid < b.
   if x <= a or x >= b then return 0 end
-  if x <= mid then return (x - a) / (mid - a) end
-  return (b - x) / (b - mid)
+  local t = x <= mid and (x - a) / (mid - a) or (b - x) / (b - mid)
+  return t * t * (3 - 2 * t)
 end
 
 -- hour: 0..24 (wraps); nightWeight: optional, from AtmosTime.at(hour) so the
@@ -76,15 +74,24 @@ function AtmosSky.at(hour, nightWeight, dim, flash)
     forestBase = mix3(AtmosSky.DAY.forestBase, AtmosSky.NIGHT.forestBase, nw),
     seaBlue = mix3(AtmosSky.DAY.seaBlue, AtmosSky.NIGHT.seaBlue, nw),
   }
-  -- dusk/dawn warm horizon bands (sky only; the ground grade's own blend is
-  -- the 18:00-18:30 / 04:00-06:00 windows in AtmosTime, half an hour off)
-  local duskK = triangle(hour, AtmosSky.DUSK_START, (AtmosSky.DUSK_START + AtmosSky.DUSK_END) / 2, AtmosSky.DUSK_END)
-  local dawnK = triangle(hour, AtmosSky.DAWN_START, (AtmosSky.DAWN_START + AtmosSky.DAWN_END) / 2, AtmosSky.DAWN_END)
+  -- Warm sky and haze follow the same sunrise/golden-hour windows as the ground.
+  local duskK = triangle(hour, AtmosSky.DUSK_START, AtmosSky.DUSK_PEAK, AtmosSky.DUSK_END)
+  local dawnK = triangle(hour, AtmosSky.DAWN_START, AtmosSky.DAWN_PEAK, AtmosSky.DAWN_END)
   local horizon = base.horizon
   if duskK > 0 then horizon = mix3(horizon, AtmosSky.DUSK_HORIZON, duskK) end
   if dawnK > 0 then horizon = mix3(horizon, AtmosSky.DAWN_HORIZON, dawnK) end
 
   local zenith, forestBase, seaBlue = base.zenith, base.forestBase, base.seaBlue
+  if dawnK > 0 then
+    zenith = mix3(zenith, AtmosSky.DAWN_ZENITH, dawnK * (1 - nw))
+    forestBase = mix3(forestBase, {0.32, 0.36, 0.26}, dawnK)
+    seaBlue = mix3(seaBlue, {0.32, 0.48, 0.72}, dawnK)
+  end
+  if duskK > 0 then
+    zenith = mix3(zenith, AtmosSky.DUSK_ZENITH, duskK * (1 - nw))
+    forestBase = mix3(forestBase, {0.34, 0.32, 0.20}, duskK)
+    seaBlue = mix3(seaBlue, {0.34, 0.45, 0.66}, duskK)
+  end
   dim = clamp01(tonumber(dim) or 0)
   flash = clamp01(tonumber(flash) or 0)
   if dim > 0 then

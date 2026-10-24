@@ -39,6 +39,11 @@ function S.title(prog)
   if prog.skipping then return "Skipping preparation" end
   local phase = prog.phase
   if phase == "check" or phase == "plan" then return "Checking world cache" end
+  if phase == "cpu" then
+    if prog.operation == "rebuild" then return "Rebuilding world geometry" end
+    if prog.operation == "resume" then return "Resuming world preparation" end
+    return "Precaching world geometry"
+  end
   if phase == "building" then return "Loading nearby terrain" end
   if phase == "warm" then return "Preparing the view" end
   if phase == "failed" then return "Preparation unavailable" end
@@ -69,6 +74,7 @@ local function paint(self, w, h, prog)
   elseif phase == "warm" then line = "Preparing the view..."
   elseif phase == "failed" then line = "Preparation unavailable."
   elseif phase == "finish" then line = "Finishing up..."
+  elseif phase == "cpu" then line = ("Geometry %d of %d"):format(prog.done or 0,prog.total or 0)
   elseif phase == "tiles" then line = ("Loading tilesets %d of %d"):format(math.min(prog.total, prog.done + 1), prog.total)
   elseif (prog.total or 0) > 0 then line = ("Map %d of %d"):format(math.min(prog.total, prog.done + 1), prog.total)
   else line = "Preparing nearby terrain..." end

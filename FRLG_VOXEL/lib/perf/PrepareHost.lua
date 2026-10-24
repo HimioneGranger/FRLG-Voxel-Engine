@@ -20,6 +20,7 @@ function H.new(ctx)
   local self = setmetatable({ ctx = ctx, prep = nil, screen = nil, prog = {}, bWas = nil, shown = false,
     clock = ctx.clock or (love and love.timer and love.timer.getTime) or os.clock }, H)
   self.Prep = V.require("perf/FrPrepare")
+  self.VoxelTrees = V.require("render/FrlgVoxelTrees")
   local okS, Screen = pcall(V.require, "render/PrepareScreen")
   self.Screen = okS and Screen or nil
   return self
@@ -45,7 +46,16 @@ function H:ensure(r)
   local pc = c.worldCache()
   if not pc then self.failed = "no world cache"; return nil end
   local Mods = c.Mods
+  if c.android == true and not self.cpu then
+    local okC,Cpu=pcall(c.V.require,"perf/FrPrepareCpuHost")
+    if okC then self.cpu=Cpu.new{V=c.V,android=true,source=r.source,Scene=Mods.Scene,
+      WorldSource=Mods.WorldSource,retroGrass=c.grass()~=nil,log=c.log,
+      voxelTrees=function() return self.VoxelTrees.active() end} end
+  end
+  local generation = self.VoxelTrees.generation()
+  local variant = self.VoxelTrees.active() and "vt1" or "vt0"
   local ok, prep = pcall(self.Prep.new, {
+    variant = variant,
     pc = pc, clock = self.clock, log = c.log, scene = Mods.Scene, source = r.source, reach = Mods.Scene.REACH,
     maps = function(game) return game and game.data and game.data.maps end,
     ensureLayout = function(game, id, def)
@@ -59,15 +69,21 @@ function H:ensure(r)
     end,
     isOutdoor = Mods.WorldSource.isOutdoor,
     shadows = function() return r.scene.shadows end,
-    gate = function() return self:allowed() end,
+    gate = function() return self:allowed() and self.VoxelTrees.generation() == generation end,
     heapKB = function() return collectgarbage("count") end,
     afterCollect = function(kb) -- GC SLACK: the heap right after a completed cycle is the new baseline
       local pacer = r.pacer
       local slack = pacer and pacer.slack
       if slack and type(slack.noteFullCollect) == "function" then pcall(slack.noteFullCollect, slack, kb) end
     end,
+    background = self.cpu and function(game,todo,driver) return self.cpu:start(game,todo,driver) end or nil,
+    backgroundFinished = self.cpu and function() if self.cpu then self.cpu:release() end end or nil,
     newScene = function()
-      return Mods.Scene.new({ source = r.source, mesher = r.scene.mesher, log = c.log, shadows = r.scene.shadows,
+      local mesher=function(input)
+        if self.cpu then local geom,name=self.cpu:consume(input);if geom then return geom,name end end
+        return r.scene.mesher(input)
+      end
+      return Mods.Scene.new({ source = r.source, mesher = mesher, log = c.log, shadows = r.scene.shadows,
         isBusy = r.scene.isBusy, retroGrass = c.grass(), precache = pc })
     end,
     capBytes = H.CAP_BYTES,
@@ -83,6 +99,18 @@ function H:frame(r, game, battle3d, menuOpen, failed, mode)
   self.preintro = preintro
   local xr = r and r.xr
   if self.bootSkipped then return false end
+  -- A tree toggle changes the producer, not whether preparation is supported.
+  -- Retire the old plan/writer before reusing completed entries for the new
+  -- mode. Keep a retiring CPU coordinator until it confirms worker shutdown.
+  local generation = self.VoxelTrees.generation()
+  if self.treeGeneration ~= nil and self.treeGeneration ~= generation then
+    if self.prep then self.prep:invalidateMode(); self.prep = nil end
+    if self.cpu then self.cpu:release() end
+    self:_hide(r)
+    self.bWas = nil
+    self.failure, self.failureWas, self.failedDismissed, self.failed = nil, nil, nil, nil
+  end
+  self.treeGeneration = generation
   if not self:allowed() and not self.failure then
     if self.shown then self:_hide(r) end
     if self.prep and self.prep:isActive() then self.prep:update(game, 0) end -- notices the switch and stops cleanly
@@ -209,6 +237,7 @@ function H:rearm()
 end
 
 function H:release(r)
+  if self.cpu then self.cpu:release();self.cpu=nil end
   self:_hide(r)
   if self.prep and self.prep:isActive() then self.prep:skip(); pcall(self.prep.update, self.prep, nil, 0) end
   self.prep, self.bWas = nil, nil -- a new session starts a fresh driver

@@ -474,10 +474,10 @@ function WorldSource:atlasFor(pair)
   local NT = self.NativeTileset
   if not (NT and pair and NT.ready and NT.ready(pair)) then return nil end
   local ts = NT.get(pair)
-  if not (ts and ts.image) then return nil end
+  if not (ts and (ts.image or (ts.cpuAtlas and ts.imageData))) then return nil end
   local cached = self.atlases[ts]
   if cached then return cached end
-  local W, H = ts.image:getDimensions()
+  local W, H = (ts.image or ts.imageData):getDimensions()
   local cols = ts.cols or 16
   local midToSlot = ts.midToSlot or {}
   -- Lab 8 P0-1 (1c): Scene.new injects Scene._yieldPoint as self.yieldPoint
@@ -564,7 +564,7 @@ function WorldSource:atlasFor(pair)
     -- nil for a mid without over art (contract: "overRect(mid) -> ... | nil";
     -- the mesher derives hasOver from it; w3/REPORT.md "Contract additions").
     overRect = function(mid)
-      if not (ts.layered and ts.overImage) then return nil end
+      if not (ts.layered and (ts.overImage or (ts.cpuAtlas and ts.overImageData))) then return nil end
       if not overMids[mid] then return nil end
       return rect(mid)
     end,

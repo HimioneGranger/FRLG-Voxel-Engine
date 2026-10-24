@@ -71,7 +71,7 @@
 -- from 3-5 cells, ~30 % from 2 (Ctx:grass). 10 triangles a cell (+ the
 -- mesher's 2-triangle base); border rings 4.
 --
--- FLOWERS. One fixed keyed native-art sheet, gently leaning north.
+-- FLOWERS. One fixed upright keyed native-art sheet.
 -- Original cropped artwork and animation UVs are preserved. 2 triangles.
 -- No crossed copy, camera facing, or extra texture.
 --
@@ -98,7 +98,7 @@
 -- the gates are <= 60k a map and <= 45k an eye).
 
 local F = {}
-F.VERSION = "w7.19-single-flowers"
+F.VERSION = "w7.20-upright-single-flowers"
 
 -- Tunables. deps.Constants may override any key of the same name.
 F.DEFAULTS = {
@@ -136,8 +136,7 @@ F.DEFAULTS = {
   FLORA_GRASS_H_GRID_SPINE = 0.46, -- ... the north / south spines
   FLORA_GRASS_GRID_ARM = 55,    -- grid style: the arms' turn off east-west (degrees)
   FLOWER_CARD_W = 0.66,        -- whole-tile flower card
-  FLOWER_CARD_H = 0.6,         -- its length along the lean
-  FLOWER_LEAN = 0.72,          -- radians each flower card leans back
+  FLOWER_CARD_H = 0.6,         -- upright native-art card height
   -- tree rows (round 5: "we only need like two rows of trees just to hide
   -- the sky"): depth = cells to the nearest non-forest cell (border rings:
   -- to the ring's inner hole)
@@ -2416,7 +2415,7 @@ end
 -- ---------------------------------------------------------------------
 -- flowers
 -- ---------------------------------------------------------------------
--- One fixed east-west native-art sheet. Never intersect a second sheet.
+-- One fixed upright east-west native-art sheet. Never intersect a second sheet.
 function Ctx:flower(x, y, gy, uv, mid)
   local C = self.C
   local list, newV = self.keyed, self.newV
@@ -2424,32 +2423,23 @@ function Ctx:flower(x, y, gy, uv, mid)
   local u0, v0, u1, v1 = texRect(uv, x0, y0, x1, y1)
   local n = #list
   local wt = C.FLOWER_CARD_W * (x1 - x0) / 16
-  local lt = C.FLOWER_CARD_H * (y1 - y0) / 16
-  do
-    local k = 0
-    local lean = C.FLOWER_LEAN + (hash01(x, y, 95 + k) - 0.5) * 0.2
-    local cl, sl = cos(lean), sin(lean)
-    -- side axis and lean direction: k = 0 east-west, top north; k = 1
-    -- north-south, top west
-    local sx, sz, dx, dz = 1, 0, 0, -1
-    local px = x + 0.5 + (hash01(x, y, 97 + k) - 0.5) * 0.1 - dx * lt * sl * 0.5
-    local pz = y + 0.5 + (hash01(x, y, 99 + k) - 0.5) * 0.1 - dz * lt * sl * 0.5
-    local hx, hz = sx * wt * 0.5, sz * wt * 0.5
-    local ox, oy, oz = dx * lt * sl, lt * cl, dz * lt * sl
-    -- normal: the card's face (up and away from the lean), bent up
-    local nx, ny, nz = -dx * cl, sl + 0.3, -dz * cl
-    local nl = sqrt(nx * nx + ny * ny + nz * nz)
-    nx, ny, nz = nx / nl, ny / nl, nz / nl
-    local a0, a1 = u0, u1
-    if hash01(x, y, 90 + k) < 0.5 then a0, a1 = u1, u0 end
-    local p1 = newV(px - hx, gy, pz - hz, a0, v1, nx, ny, nz)
-    local p2 = newV(px + hx, gy, pz + hz, a1, v1, nx, ny, nz)
-    local p3 = newV(px + hx + ox, gy + oy, pz + hz + oz, a1, v0, nx, ny, nz)
-    local p4 = newV(px - hx + ox, gy + oy, pz - hz + oz, a0, v0, nx, ny, nz)
-    list[n + 1], list[n + 2], list[n + 3] = p1, p2, p3
-    list[n + 4], list[n + 5], list[n + 6] = p1, p3, p4
-    n = n + 6
-  end
+  local ht = C.FLOWER_CARD_H * (y1 - y0) / 16
+  -- Retain the existing deterministic center and horizontal artwork mirroring.
+  -- Top and base share X/Z, so neither a fixed lean nor random pitch can return.
+  local px = x + 0.5 + (hash01(x, y, 97) - 0.5) * 0.1
+  local pz = y + 0.5 + (hash01(x, y, 99) - 0.5) * 0.1
+  local hx = wt * 0.5
+  -- Keep a small upward lighting bias for foliage, independent of geometry.
+  local nl = sqrt(1 + 0.3 * 0.3)
+  local nx, ny, nz = 0, 0.3 / nl, 1 / nl
+  local a0, a1 = u0, u1
+  if hash01(x, y, 90) < 0.5 then a0, a1 = u1, u0 end
+  local p1 = newV(px - hx, gy, pz, a0, v1, nx, ny, nz)
+  local p2 = newV(px + hx, gy, pz, a1, v1, nx, ny, nz)
+  local p3 = newV(px + hx, gy + ht, pz, a1, v0, nx, ny, nz)
+  local p4 = newV(px - hx, gy + ht, pz, a0, v0, nx, ny, nz)
+  list[n + 1], list[n + 2], list[n + 3] = p1, p2, p3
+  list[n + 4], list[n + 5], list[n + 6] = p1, p3, p4
   self.stats.flowerCells = self.stats.flowerCells + 1
   return true, 2
 end

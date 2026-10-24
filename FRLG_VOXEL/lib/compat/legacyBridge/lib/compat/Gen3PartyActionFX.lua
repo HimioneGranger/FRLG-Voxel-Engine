@@ -87,6 +87,14 @@ function M.install(V)
     local ok,undo=pcall(Heading.install,V)
     if ok and type(undo)=='function'then headingUndo=undo end
   end
+  -- VR-only actor adapters share the party presentation lifecycle.
+  local actorUndos={}
+  for _,name in ipairs({'Gen3CapturePresentation','Gen3FollowerPlacement'})do
+    local ok,undo=pcall(function()return Host.require('compat/'..name).install(V,Host)end)
+    stats[name..'Installed']=ok and type(undo)=='function'
+    if ok and type(undo)=='function'then actorUndos[#actorUndos+1]=undo
+    elseif Host.mod.log then Host.mod.log:warn('%s unavailable: %s',name,tostring(undo))end
+  end
   local subjectUndo
   local okSubject,Subject=pcall(function()return Host.require('compat/Gen3PartySubjectCompat')end)
   if okSubject and Subject then
@@ -349,7 +357,17 @@ function M.install(V)
     rings[self] = nil
     clear(self,'disposed');return original.dispose(self)
   end
+  -- Follower hand actions share this install/uninstall lifecycle.
+  local medicineUndo
+  local okMedicine,undoMedicine=pcall(function()
+    return Host.require('compat/Gen3PhysicalMedicine').install(V)
+  end)
+  if okMedicine then medicineUndo=undoMedicine end
+  stats.medicineAdapterInstalled=type(medicineUndo)=='function'
+  if not okMedicine and Host.mod.log then Host.mod.log:warn('Follower medicine unavailable: %s',tostring(undoMedicine))end
   return function()
+    if medicineUndo then medicineUndo()end
+    for i=#actorUndos,1,-1 do actorUndos[i]()end
     if headingUndo then headingUndo()end
     if subjectUndo then subjectUndo()end
     for owner in pairs(audioOwners)do stopSound(owner,true)end

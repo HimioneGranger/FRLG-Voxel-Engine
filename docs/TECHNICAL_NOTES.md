@@ -1,99 +1,104 @@
-# FRLG Voxel Engine — beta
+# Beta 5 technical notes
 
-A FireRed/LeafGreen voxel renderer for a compatible Gen1Recomp Gen 3 host.
-This repository distributes the renderer mod, its internal compatibility
-adapters and development sources. It does not distribute the host application
-or a collection of gameplay mods.
+This repository distributes the FRLG renderer and internal adapters. The host,
+ROM import, game simulation, platform services and optional gameplay mods remain
+separate. FireRed lab 3253 is the reference integration (engine 0.3.33, mod API 2,
+LÖVE graphics, plus OpenXR on Quest). The manifest's broad host version range
+does not establish compatibility with every host in that range.
 
-This is an evaluation beta. Your original game data is required separately.
-No ROM, extracted game atlas, save, signing key or account credential is supplied.
+## Installation and host services
 
-## Installation
+Install only `FRLG_VOXEL`. Internal adapters initialize under its normal hooks,
+events and options. The protected `getCompatibilityHost()` export supplies a
+host handle only when the engine is ready for FireRed/LeafGreen; it does not
+insert a fake mod or loader alias.
 
-Extract `FRLG_VOXEL` into the compatible host's mods directory. All adapters
-initialize under this engine's hooks, events and options. No separately enabled
-compatibility shim is needed for the renderer or Wilds Pokémon drawing.
-Beta 4's tested host is FireRed lab 3232 (engine 0.3.33, mod API 2/LÖVE,
-plus OpenXR for Quest). Earlier beta verification used Gen 3 Lab 62.
-Original game inputs and optional gameplay mods remain separate.
+The optional consumer updater supports the pinned VRITK, Catch and Gear
+versions. It changes discovery/dependency plumbing, preserves backups and
+refuses unknown inputs. It does not run in-game or install those mods.
+See [consumer updates](CONSUMER_UPDATES.md).
 
-Compatibility exports are isolated at `FRLG_VOXEL.exports.compatibility`.
-External consumers now use the protected `getCompatibilityHost()` export,
-which returns a standard host handle only when the engine compatibility API is
-ready for FireRed/LeafGreen. The engine's layout/readiness checks stay inside
-FRLG_VOXEL. It does not invent a host mod entry or modify the loader registry.
+Host requirements extend beyond the version number:
 
-The included offline updater changes seven source/manifest files across the
-pinned VRITK, Catch and Gear versions. It removes Catch's hard dependency on
-the absent bridge and adds ordering edges where needed. Actual host-loader
-tests cover reverse player ordering and legacy fallback. All adapter behavior
-remains inside FRLG_VOXEL; external changes are lookup/dependency plumbing.
-It never runs automatically in-game. See [consumer updates](CONSUMER_UPDATES.md)
-for validation, backups and scope. HD sprites' old host guard is still a
-separate unresolved compatibility area, not claimed covered by these changes.
+- Preparation and PC controls use `game.boot_prepare`, `render.boot`,
+  `input.mouse` and `input.focus`. Mouse/keyboard mode is a PC option.
+- Android CPU preparation requires LÖVE threads and matching native Gen 3
+  map/cache modules. GPU upload remains on the rendering thread.
+- Android background-preparation ownership and wake handling require the
+  matching Activity services (`watchWorldPrepare`, `disarmWorldPrepare` and
+  `worldPrepareProcessToken`). A mod ZIP cannot add those Java/native services.
+- Steam Frame requires a separately matched launcher and external-frame
+  adapter. This engine ZIP is not the Steam Frame tester bundle and does not
+  install that launcher or native bridge.
 
-Game simulation, ROM import and platform device services remain the host's
-responsibility.
+The separate custom title/Oak scene, its portal UI, VRITK, Catch, Gear, Wilds,
+weather and clock updates in the full lab are not bundled here. Installing
+the engine alone does not reproduce every feature of the lab APK.
 
-The updated host must call the `game.boot_prepare`, `render.boot`,
-`input.mouse` and `input.focus` hooks for the new preparation and PC mouse
-features. Older hosts are not claimed to provide them. Mouse/keyboard mode is
-a PC option and is not enabled as a Quest control scheme.
+The public package omits the lab's embedded Gen 5 sprite provider and its
+provider-specific notices. `ImportedSprites.lua` retains beta 4's external
+provider route; without a compatible separately installed provider and pack,
+it falls back to native battle artwork. The host's importer is not bundled.
+This is an explicit exception to the lab3253 source import, alongside the
+public beta version metadata; the full lab's imported-sprite workflow is not
+included. The existing project license and third-party notices are unchanged.
 
-This engine package does not include the separate custom Oak/title mod,
-Wilds, VRITK, Catch, Gear, weather/clock mods or the host application. Their
-independent updates in a full lab APK are not part of this engine ZIP.
+## Trees and preparation
 
-## Foliage development
+`VOXEL TREES` (`fr_trees`) defaults to `SHEETS`. Select `VOXEL` to use the
+native-art tree meshes. Near trees use finer geometry and distant trees use a
+coarser representation. Switching modes rebuilds the active nearby scene.
 
-Work from a branch and submit focused changes. Begin with
-`FRLG_VOXEL/lib/grass/`, `FRLG_VOXEL/lib/mesh/FrlgNativeFoliage.lua` and
-`FRLG_VOXEL/lib/render/FrlgTreeView.lua`. Preserve native plant placement,
-terrain support, source artwork and collision. Check both nearby views and
-the normal camera distances, including animated grass and tree transparency.
+The current General and Forest forms refine the existing native leaf groups
+and lower surfaces. They are not a blanket replacement for every foliage family.
+The runtime batches instances and preserves native placement and support.
+Dense forests still need device performance testing; batching alone is not a
+frame-rate guarantee.
 
-Building shapes and accepted cave layouts are protected regression baselines.
-Keep foliage changes scoped; include before/after captures and the test command
-and environment used. A passing geometry test does not establish visual or
-headset acceptance. Do not include game files or private saves in submissions.
+World-cache format 6 persists plain tree templates and placements, then creates
+the live GPU resources on a cache hit. Sheet and voxel modes have separate
+record/preparation identities. Mode changes cancel incomplete work; malformed
+or incompatible data is rejected rather than drawn as a partial cached world.
 
-## Included work and verification
+Cache invalidation now uses a conservative producer dependency policy. Exact
+listed presentation-only modules and supported audio assets do not invalidate
+static world geometry. Unknown/new files, models, geometry sources, source art
+and relevant map/settings changes remain part of the identity. This is not a
+promise that every control-only edit can avoid preparation.
 
-The beta integrates the latest reviewed native building profile set and all
-20 accepted FireRed cave outputs, including the source-specific Mt. Moon 1F
-and B2F results. Mt. Moon B2F retains its deferred visual-polish note.
-The cave runtime validates observable native map state and original artwork,
-builds its texture from local native donors, and shares geometry with its
-height queries. Water animation uses admitted native frames.
+An upgrade that changes tree geometry or the record format can legitimately
+prepare new records once. Warm reuse is expected only for compatible completed
+records. Existing cache corruption checks remain in place; users should not
+need to wipe caches as a normal update step.
 
-Verification covers exact cave geometry/UV/shading/query preservation, native
-runtime map guards, desktop GPU uploads/draws, source loading without the
-external gameplay mods, compatibility discovery/lifecycle, and cancellation
-resource cleanup. These checks do not constitute a full gameplay or Quest
-headset acceptance run. Please report beta issues with the host version and
-reproduction steps, without attaching ROMs or private saves.
+## Preserved work and verification
 
-Cold cave construction is cooperative, but can still produce frame hitches
-while decoding large meshes or allocating resources. Desktop measurements are
-development diagnostics, not a guaranteed VR frame budget. Quest performance
-and full gameplay acceptance remain unverified for this beta.
+Reviewed buildings, all 20 compiled cave outputs and original artwork remain
+protected baselines. Mt. Moon B2F retains its deferred visual-polish note.
+Large cold cave decoding or graphics allocation can still hitch.
 
-World-cache invalidation still hashes all engine compatibility files and
-assets. An audio or control-only update can therefore trigger an unnecessary
-terrain rebuild. Beta 4 does not fix that rule. See [change notes](CHANGELOG.md)
-for the current runtime checks and other limitations.
+The integration evidence includes bounded tree-cache codec and mode tests,
+actual native-map cold/reuse rendering checks, and comparisons of near/far
+canopy geometry against the selected profiles. Release verification checks
+the standalone package, its exact source provenance, Lua syntax and loading.
+These are different from a full gameplay run with every optional mod/host
+combination. State the host version, tree mode, location and reproduction steps
+when reporting a problem; do not attach ROMs or private saves.
 
-## License
+The lab/tester integration and this standalone ZIP have distinct acceptance
+status. Quest installation and automated desktop checks do not establish
+Steam Frame performance, LeafGreen-wide visual acceptance or compatibility
+with older third-party hosts.
 
-Original project material is offered under the interim
-[private-use beta license](../LICENSE.txt): private noncommercial evaluation and
-local development, with changes submitted back for review. This is a
-source-available beta, not an unrestricted open-source release. Public GitHub
-viewing/forking remains subject to GitHub's terms. The engine's original code will become open source at its full release, under
-a license announced then. Beta forks remain for private use; publicly releasing
-beta-derived work requires HimioneGranger's prior explicit written permission,
-subject to GitHub-required viewing/forking and third-party license rights.
+## Source work and licensing
 
-Third-party material retains its original terms; see
-[THIRD_PARTY_NOTICES.md](../THIRD_PARTY_NOTICES.md). No rights to Pokémon game
-content are granted by this project.
+Tree work begins in `lib/mesh/FrlgGeneralFoliage.lua`, `FrlgFoliageCompiler.lua`,
+`FrlgTreeModels.lua`, `FrlgVoxelTree.lua` and `lib/render/FrlgVoxelTrees.lua`.
+Use native-art anatomy evidence, front/side/oblique/underside views and both
+near/far geometry. Passing connectivity tests does not establish visual quality.
+Preserve the contribution history and credit for flixtkc's voxel-tree PR #1.
+
+The existing [interim private-use license](../LICENSE.txt) applies to original
+project material; third-party rights retain their own terms. This remains a
+source-available beta, not the full open-source release. Preserve the
+[third-party notices](../THIRD_PARTY_NOTICES.md) and source attributions.

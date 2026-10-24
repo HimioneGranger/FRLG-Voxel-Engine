@@ -14,6 +14,7 @@ M.INSTANCE_FORMAT={{"VertexGrassOffset","float",3}}
 
 local floor,max,min=math.floor,math.max,math.min
 local R={};R.__index=R
+local generation=0
 
 function M.supported()
   local g=love.graphics
@@ -23,11 +24,13 @@ function M.supported()
 end
 
 function M.active() return VoxelTree.enabled end
+function M.generation() return generation end
 
 function M.setActive(on)
   local enabled=on==true and M.supported()
   if enabled==VoxelTree.enabled then return false end
   VoxelTree.enabled=enabled
+  generation=generation+1
   return true
 end
 
@@ -48,7 +51,12 @@ end
 function R:build(rec,out)
   self:releaseRecord(rec)
   if not out or #out.trees==0 then return 0 end
-  local buckets,order={},{}
+  local buckets,order,groups,byTemplate={},{},{},{}
+  local function group(template)
+    local g=byTemplate[template]
+    if not g then g={template=template,capacity=0,rows={},count=0};byTemplate[template]=g;groups[#groups+1]=g end
+    return g
+  end
   for _,tree in ipairs(out.trees) do
     local key=floor(tree.x/M.BUCKET_CELLS)..":"..floor(tree.z/M.BUCKET_CELLS)..":"..tree.near..":"..tree.far
     local bucket=buckets[key]
@@ -67,12 +75,18 @@ function R:build(rec,out)
   end
   local tris=0
   for _,bucket in ipairs(order) do
-    bucket.instances=love.graphics.newMesh(M.INSTANCE_FORMAT,bucket.offsets,"points","static")
     bucket.count=#bucket.offsets
-    bucket.offsets=nil
+    bucket.nearGroup,bucket.farGroup=group(bucket.near),group(bucket.far)
+    bucket.nearGroup.capacity=bucket.nearGroup.capacity+bucket.count
+    if bucket.farGroup~=bucket.nearGroup then bucket.farGroup.capacity=bucket.farGroup.capacity+bucket.count end
     tris=tris+bucket.far.tris*bucket.count
   end
-  rec.frVoxelTrees,rec.frVoxelOwner=order,self
+  for _,g in ipairs(groups) do
+    -- Retain bounded reusable CPU rows and GPU capacity for either eye's culling.
+    for i=1,g.capacity do g.rows[i]={0,0,0} end
+    g.instances=love.graphics.newMesh(M.INSTANCE_FORMAT,g.capacity,"points","stream")
+  end
+  rec.frVoxelTrees,rec.frVoxelTreeGroups,rec.frVoxelOwner=order,groups,self
   self.records[rec]=true
   return tris
 end
@@ -100,27 +114,37 @@ local function drawInstances(mesh,bucket,texture,shader,state)
 end
 
 function R:draw(scene,env,planes,visible,shader,counters)
-  local state,resting={},false
+  local state=self.drawState or {};self.drawState=state;state.texture=nil;state.rec=nil
+  local resting=false
   local nearSquared=M.NEAR_CELLS*M.NEAR_CELLS
   for _,rec in ipairs(scene.visible or {}) do
-    for _,bucket in ipairs(rec.frVoxelTrees or {}) do
-      local x0,z0,x1,z1=bucket.x0+rec.ox,bucket.z0+rec.oz,bucket.x1+rec.ox,bucket.z1+rec.oz
-      local dx=max(x0-env.camX,0,env.camX-x1)
-      local dz=max(z0-env.camZ,0,env.camZ-z1)
-      local distanceSquared=dx*dx+dz*dz
-      if distanceSquared<=env.far*env.far and visible(planes,x0,bucket.y0,z0,x1,bucket.y1,z1) then
-        if not resting then S.send(shader,"u_grassOn",M.RESTING_GRASS);resting=true end
-        if state.rec~=rec then bindRecord(scene,env,shader,rec);state.rec=rec end
-        local template=distanceSquared<=nearSquared and bucket.near or bucket.far
-        local textures={under=rec.liveTex,over=rec.liveOverTex}
-        for _,layer in ipairs(M.LAYERS) do
-          local mesh,texture=template.layers[layer],textures[layer]
-          if mesh and texture then
-            drawInstances(mesh,bucket,texture,shader,state)
-            counters.calls=counters.calls+1
+    local groups=rec.frVoxelTreeGroups
+    if groups then
+      for _,g in ipairs(groups) do g.count=0 end
+      -- Rebuild for every eye; retain the exact original bucket bounds and LOD test.
+      for _,bucket in ipairs(rec.frVoxelTrees or {}) do
+        local x0,z0,x1,z1=bucket.x0+rec.ox,bucket.z0+rec.oz,bucket.x1+rec.ox,bucket.z1+rec.oz
+        local dx=max(x0-env.camX,0,env.camX-x1)
+        local dz=max(z0-env.camZ,0,env.camZ-z1)
+        local distanceSquared=dx*dx+dz*dz
+        if distanceSquared<=env.far*env.far and visible(planes,x0,bucket.y0,z0,x1,bucket.y1,z1) then
+          local g=distanceSquared<=nearSquared and bucket.nearGroup or bucket.farGroup
+          for i=1,bucket.count do g.count=g.count+1;g.rows[g.count]=bucket.offsets[i] end
+          counters.tris=counters.tris+g.template.tris*bucket.count
+        end
+      end
+      for _,g in ipairs(groups) do
+        if g.count>0 then
+          if not resting then S.send(shader,"u_grassOn",M.RESTING_GRASS);resting=true end
+          if state.rec~=rec then bindRecord(scene,env,shader,rec);state.rec=rec end
+          g.instances:setVertices(g.rows,1,g.count)
+          for _,layer in ipairs(M.LAYERS) do
+            local mesh=g.template.layers[layer]
+            local texture
+            if layer=="under" then texture=rec.liveTex else texture=rec.liveOverTex end
+            if mesh and texture then drawInstances(mesh,g,texture,shader,state);counters.calls=counters.calls+1 end
           end
         end
-        counters.tris=counters.tris+template.tris*bucket.count
       end
     end
   end
@@ -128,10 +152,10 @@ function R:draw(scene,env,planes,visible,shader,counters)
 end
 
 function R:releaseRecord(rec)
-  for _,bucket in ipairs(rec.frVoxelTrees or {}) do
-    if bucket.instances then bucket.instances:release();bucket.instances=nil end
+  for _,g in ipairs(rec.frVoxelTreeGroups or {}) do
+    if g.instances then g.instances:release();g.instances=nil end
   end
-  rec.frVoxelTrees,rec.frVoxelOwner=nil,nil
+  rec.frVoxelTrees,rec.frVoxelTreeGroups,rec.frVoxelOwner=nil,nil,nil
   self.records[rec]=nil
 end
 

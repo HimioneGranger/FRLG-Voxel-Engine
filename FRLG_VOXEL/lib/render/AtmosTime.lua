@@ -1,3 +1,7 @@
+-- Golden-hour presentation update: the tuned renderer uses warm07:00
+-- sunrise and17:00 golden-hour anchors, with smooth twilight through19:30.
+-- Historical schedule comments below describe legacyAt/RTC panel matching.
+-- Gameplay periodAt boundaries remain unchanged.
 -- FRLG_VOXEL: the 3D time-of-day schedule (worker "atmos", GW-P1,
 -- daynight-weather-hook/DESIGN.md 3.2). Pure data + pure function: no love,
 -- no engine, no mod table. Given an hour (0..24, wraps), returns the grade
@@ -110,7 +114,7 @@ end
 
 -- Returns { mul = {r,g,b}, add = {r,g,b}, period, nightWeight, dayWeight }.
 -- preset: "tuned" (default) | "rtc"; an unknown name falls back to tuned.
-function AtmosTime.at(hour, presetName)
+local function legacyAt(hour, presetName)
   hour = wrapHour(hour)
   local preset = AtmosTime.PRESETS[presetName] or AtmosTime.PRESETS[AtmosTime.DEFAULT_PRESET]
   local period = AtmosTime.periodAt(hour)
@@ -153,6 +157,40 @@ function AtmosTime.at(hour, presetName)
     mul = mul, add = add, period = period,
     nightWeight = nightWeight, dayWeight = dayWeight,
   }
+end
+
+-- Sunrise and golden-hour presentation. Gameplay periods still use the
+-- native RTC boundaries above. The optional RTC panel-match preset retains
+-- its original grade; midnight/night and neutral midday are unchanged.
+AtmosTime.SUNRISE_MUL = { 1.03, 0.88, 0.78 }
+AtmosTime.SUNRISE_ADD = { 0.045, 0.020, 0.014 }
+AtmosTime.GOLDEN_MUL = { 1.06, 0.84, 0.63 }
+AtmosTime.GOLDEN_ADD = { 0.045, 0.023, 0.006 }
+
+function AtmosTime.at(hour, presetName)
+  hour = wrapHour(hour)
+  local state = legacyAt(hour, presetName)
+  if presetName == "rtc" then return state end
+  local night = AtmosTime.PRESETS.tuned.night
+  local function blend(a, b, aa, ba, t, nightWeight)
+    state.mul, state.add = lerp3(a, b, t), lerp3(aa, ba, t)
+    state.nightWeight, state.dayWeight = nightWeight, 1 - nightWeight
+  end
+  if hour >= 4 and hour < 7 then
+    local t = smooth01(4, 7, hour)
+    blend(night, AtmosTime.SUNRISE_MUL, AtmosTime.NIGHT_LIFT,
+      AtmosTime.SUNRISE_ADD, t, 1 - t)
+  elseif hour >= 7 and hour < 10.5 then
+    local t = smooth01(7, 10.5, hour)
+    blend(AtmosTime.SUNRISE_MUL, DAY_MUL, AtmosTime.SUNRISE_ADD, ZERO_ADD, t, 0)
+  elseif hour >= 16 and hour < 17 then
+    local t = smooth01(16, 17, hour)
+    blend(DAY_MUL, AtmosTime.GOLDEN_MUL, ZERO_ADD, AtmosTime.GOLDEN_ADD, t, 0)
+  elseif hour >= 17 and hour < 19.5 then
+    local t = smooth01(17, 19.5, hour)
+    blend(AtmosTime.GOLDEN_MUL, night, AtmosTime.GOLDEN_ADD, AtmosTime.NIGHT_LIFT, t, t)
+  end
+  return state
 end
 
 -- Identity (indoors/caves, DESIGN.md 4.8; also the "grade unavailable" case).
