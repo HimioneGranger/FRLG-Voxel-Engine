@@ -31,18 +31,37 @@ function M.select(mod,scoped,engine,game,legacy)
  if not(validHex(scoped) and validHex(engine)) then return scoped end
  local aliases=type(legacy)=='table' and legacy[scoped]
  if type(aliases)~='table' or not(mod and mod.cache and type(mod.cache.read)=='function') then return scoped end
- local tokens={}
+ local codes={}
  for i,code in ipairs(aliases) do
   if i>128 then return scoped end
-  if validHex(code) then tokens[hex(table.concat({'frpp1',tostring(game),code,engine},'|'))]=code end
+  if validHex(code) then codes[#codes+1]=code end
  end
- local best
- -- Match FrPrepare's newest-valid-copy rule, including the first-copy tie.
- for _,which in ipairs{'a','b'} do
-  local ok,s=pcall(mod.cache.read,mod.cache,'fr-precache/v1/prep.'..which)
-  local m=ok and M.decode(s)
-  if m and (not best or m.seq>best.seq) then best=m end
+ local matched={}
+ -- Each mode owns its own sequence. Never compare sequence numbers across
+ -- modes or fall back to an older token when the newest valid copy differs.
+ for _,variant in ipairs{'vt0','vt1','default'} do
+  local prefix='fr-precache/v1/prep'..(variant=='default'and''or'.'..variant)..'.'
+  local best
+  for _,which in ipairs{'a','b'} do
+   local ok,s=pcall(mod.cache.read,mod.cache,prefix..which)
+   local m=ok and M.decode(s)
+   if m and (not best or m.seq>best.seq) then best=m end
+  end
+  if best then
+   local function matches(code)
+    local parts={'frpp1',tostring(game),code,engine}
+    -- Older unpartitioned manifests used four fields. New default and mode
+    -- manifests include the fifth field exactly as FrPrepare:_token does.
+    if variant=='default'and best.token==hex(table.concat(parts,'|'))then return true end
+    parts[5]=variant
+    return best.token==hex(table.concat(parts,'|'))
+   end
+   -- Prefer an already prepared current release over any historical alias.
+   if matches(scoped)then return scoped end
+   for _,code in ipairs(codes)do if matches(code)then matched[code]=true end end
+  end
  end
- return best and tokens[best.token] or scoped
+ for _,code in ipairs(codes)do if matched[code]then return code end end
+ return scoped
 end
 return M

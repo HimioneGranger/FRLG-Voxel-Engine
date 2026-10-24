@@ -422,6 +422,8 @@ return {
       [37]=45
     },
     boughModel={
+      -- Rigid canopy-only placement; native samples remain canopy-local.
+      canopyOffsetY=-4,
       apex=45,
       rootRadius=4.1,
       stemVisible=11,

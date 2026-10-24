@@ -32,7 +32,10 @@ local V = ...
 local Mat4 = V.require("render/Mat4")
 local Shaders = V.require("render/Shaders")
 
+local FogBackdrop=V.require("render/FogBackdrop")
 local Sky = {}
+local lastFrac,normalVertexCount
+local fogSkyEnv,zeroEye={}, {0,0,0}
 
 Sky.ZENITH = { 0.40, 0.64, 0.93 }
 Sky.HORIZON = { 0.80, 0.89, 0.97 }
@@ -168,8 +171,17 @@ local function build()
     -- cap to the zenith
     v(x0, topY, z0, VT); v(x1, topY, z1, VT); v(0, 1, 0, VZ)
   end
+  normalVertexCount=#verts
+  -- Complete the lower hemisphere only for the shared haze field. The
+  -- original fogless sky draw range excludes these triangles.
+  for i=0,SEG-1 do
+    local a0,a1=i/SEG*2*math.pi,(i+1)/SEG*2*math.pi
+    v(math.cos(a1),lowY,math.sin(a1),VB)
+    v(math.cos(a0),lowY,math.sin(a0),VB)
+    v(0,-1,0,VB)
+  end
   bandKey = nil
-  Sky.setBands(nil)
+  Sky.setBands(lastFrac)
   local ok, m = pcall(love.graphics.newMesh, Sky.FORMAT, verts, "triangles", "dynamic")
   if not ok then return nil end
   m:setTexture(grad)
@@ -181,6 +193,7 @@ end
 -- or nil for all forest. Ring vertex j takes the mean of its two segments.
 -- Updates the mesh only when the (quantised) shares change.
 function Sky.setBands(frac)
+  lastFrac=frac
   if not verts then return false end
   local q = {}
   for j = 0, SEG - 1 do
@@ -226,11 +239,13 @@ function Sky.draw(vp, eye, m, env)
   local sm = build()
   local shader = Shaders.get("OPAQUE")
   if not (sm and shader) then return 0 end
+  sm:setDrawRange(1,env.fogBackdrop and #verts or normalVertexCount)
   local r = Sky.RADIUS_M / m
   local g = love.graphics
   g.setDepthMode()
   g.setShader(shader)
-  Shaders.frame(shader, { light = env.light, fog = { 1000, 2000, 0 }, fogColor = env.fogColor })
+  Shaders.frame(shader, { light = env.light, fog = { 1000, 2000, 0 }, fogColor = env.fogColor,
+    fogBackdrop=env.fogBackdrop and FogBackdrop.environment(zeroEye,true,fogSkyEnv) or nil })
   Shaders.shadow(shader, nil)
   Shaders.texSize(shader, nil)   -- no atlas tile clamp on the gradient
   Shaders.send(shader, "u_mvp", "row", Mat4.chain(vp, Mat4.translate(eye[1], eye[2], eye[3]), Mat4.scale(r)))
@@ -243,11 +258,13 @@ function Sky._drawHoist(vp, eye, m, env)
   local sm = build()
   local shader = Shaders.get("OPAQUE")
   if not (sm and shader) then return 0 end
+  sm:setDrawRange(1,env.fogBackdrop and #verts or normalVertexCount)
   local r = Sky.RADIUS_M / m
   local g = love.graphics
   g.setDepthMode()
   g.setShader(shader)
   skyEnv.light, skyEnv.fogColor = env.light, env.fogColor
+  skyEnv.fogBackdrop=env.fogBackdrop and FogBackdrop.environment(zeroEye,true,fogSkyEnv) or nil
   Shaders.frame(shader, skyEnv)
   Shaders.shadow(shader, nil)
   Shaders.texSize(shader, nil)   -- no atlas tile clamp on the gradient
@@ -257,6 +274,11 @@ function Sky._drawHoist(vp, eye, m, env)
   g.draw(sm)
   g.setShader()
   return 1
+end
+
+function Sky.fogBackdrop(eye,out)
+  FogBackdrop.palette(Sky.ZENITH,Sky.HORIZON,Sky.FOREST,Sky.SEA_HAZE,lastFrac)
+  return FogBackdrop.environment(eye,false,out)
 end
 
 function Sky.fogColor()
@@ -271,6 +293,8 @@ function Sky.clearColor(sea)
 end
 
 function Sky.release()
+  FogBackdrop.release()
+  lastFrac=nil
   if mesh then pcall(mesh.release, mesh) end
   if image then pcall(image.release, image) end
   mesh, image, verts, bandIdx, bandKey = nil, nil, nil, nil, nil

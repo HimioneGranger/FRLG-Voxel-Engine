@@ -21,7 +21,7 @@ local V = ...
 local Font = V.require('render/SignPixelFont')
 local Profiles = V.require('data/SignProfiles')
 local Mip = V.require('render/Mip')
-local M = { VERSION = 'firered-sign-runtime-4' }
+local M = { VERSION = 'firered-sign-runtime-6-rear-directions' }
 M.IDLE_CAP = 12 -- unreferenced textures kept (256 x 256 rgba8 = 256 KiB each)
 
 local styles = {
@@ -200,20 +200,29 @@ end
 local function smoothTile(p, style, transparentKey, yield, flat)
   return smoothImage(artTile(p, style, transparentKey, flat), yield)
 end
-local function drawTile(g, img) g.setColor(1, 1, 1, 1); g.draw(img, 0, 0, 0, 2, 2) end
+local function drawTile(g, img, rear)
+  g.setColor(1, 1, 1, 1)
+  g.draw(img, rear and 256 or 0, 0, 0, rear and -2 or 2, 2)
+end
+
+-- Rear navigation directions turn 180 degrees with the reader. Reverse
+-- every cardinal arrow while keeping lettering in reading order.
+function M.rearArrow(dir) return ({north='south',south='north',east='west',west='east'})[dir] or dir end
+local function mirrorRect(r) return {16-r[2],16-r[1],r[3],r[4]} end
 
 -- Board families (metal, wood, gym). -> canvas | nil, reason
-local function renderBoard(p, style, label, yield)
+local function renderBoard(p, style, label, yield, rear)
   local spec = styles[style]
   local gymOnly = style == 'fr-gym' and not label.title
   local bg = color(p, unpack(spec.bg))
   local ink = spec.inkColor or color(p, unpack(spec.ink))
   local panel, band = spec.panel, spec.band
+  if rear then panel=mirrorRect(panel);if band then band=mirrorRect(band) end end
   local dirs = label.directions or {}
   local dirLines = {}
   for _, d in ipairs(dirs) do
     if not Font.supports(d.label) or not arrowPixels[d.arrow] then return nil, 'unsupported-direction' end
-    dirLines[#dirLines + 1] = { text = d.label, arrow = d.arrow }
+    dirLines[#dirLines + 1] = { text = d.label, arrow = rear and M.rearArrow(d.arrow) or d.arrow }
     if #dirs == 1 and d.nextTown then
       if not Font.supports(d.nextTown) then return nil, 'unsupported-direction' end
       dirLines[#dirLines + 1] = { text = d.nextTown }
@@ -247,7 +256,10 @@ local function renderBoard(p, style, label, yield)
   local art = smoothTile(p, style, style ~= 'fr-metal', yield)
   local canvas, why = withCanvas(function(g)
     -- native art at eight times the native resolution, shadow and ground transparent
-    drawTile(g, art)
+    -- The rear replaces a solid native reading rectangle. Retain that native
+    -- body under the filtered edge pixels so the closed board stays closed.
+    if rear then g.setColor(unpack(bg));g.rectangle('fill',0,0,256,256) end
+    drawTile(g, art, rear)
     local function fill(r, c) g.setColor(unpack(c)); g.rectangle('fill', r[1] * 16, r[3] * 16, (r[2] - r[1]) * 16, (r[4] - r[3]) * 16) end
     if titleFont then
       fill(panel, bg); g.setColor(unpack(ink)); g.setFont(titleFont)
@@ -271,10 +283,10 @@ local function renderBoard(p, style, label, yield)
     if style == 'fr-gym' then
       -- The native GYM glyphs are 3 pixels tall and read as "OYH"; draw GYM bold in the same slate on the same face.
       local face, slate = color(p, 1, 3), color(p, 2, 4)
-      g.setColor(unpack(face)); g.rectangle('fill', 2 * 16, 4 * 16, 11 * 16, 3 * 16)
+      g.setColor(unpack(face)); g.rectangle('fill', (rear and 3 or 2) * 16, 4 * 16, 11 * 16, 3 * 16)
       local f = fontAt(6)
       g.setColor(unpack(slate)); g.setFont(f)
-      g.print('GYM', math.floor(120 - f:getWidth('GYM') / 2), math.floor(88 - f:getHeight() / 2))
+      g.print('GYM', math.floor((rear and 136 or 120) - f:getWidth('GYM') / 2), math.floor(88 - f:getHeight() / 2))
     end
     if style == 'fr-metal' then
       -- Solid dark top rail (rows 0-1) over the native top return, then the native frame colour.
@@ -346,7 +358,7 @@ local function contentKey(style, p, label)
   for i = 1, 256 do pal[i] = p[i] or -1 end
   local dirs = {}
   for _, d in ipairs(label.directions or {}) do dirs[#dirs + 1] = d.arrow .. ':' .. d.label .. ':' .. tostring(d.nextTown) end
-  return table.concat({ style, table.concat(pal, ','), tostring(label.title), table.concat(dirs, ';') }, '|')
+  return table.concat({ style, table.concat(pal, ','), tostring(label.title), table.concat(dirs, ';'), label.rear and 'rear' or 'front' }, '|')
 end
 
 local function acquire(state, key, style, p, label, renderFn)
@@ -395,6 +407,16 @@ function M.prepare(input, yieldPoint, owner)
         if style == 'fr-mailbox' then rf = function() return renderMailbox(p, label) end
         else rf = function() return renderBoard(p, style, label, yieldPoint) end end
         local okA, why = acquire(state, key, style, p, label, rf)
+        if okA and style~='fr-mailbox' then
+          local rear={};for k,v in pairs(label)do rear[k]=v end;rear.rear=true
+          local okB, whyB=acquire(state,key..'#back',style,p,rear,
+            function() return renderBoard(p,style,rear,yieldPoint,true) end)
+          if okB then input.signLabelsReady[key..'#back']=true
+          else
+            -- Either both readable faces exist or the native board is kept.
+            unref(state.entries[key].e);state.entries[key]=nil;okA=false;why=whyB
+          end
+        end
         if okA then
           input.signLabelsReady[key] = true; reason = 'ready'
           if style == 'fr-gym' then
@@ -453,9 +475,11 @@ function M.upload(state, faces, format)
     else
       local l, r, b, t, z = d.x0, d.x1, d.y0, d.y1, d.z
       local u0, v0, u1, v1 = d.u0 or 0, d.v0 or 0, d.u1 or 1, d.v1 or 1
+      local rear=d.normal and d.normal[3]<0
+      local left,right,nz=rear and r or l,rear and l or r,rear and -1 or 1
       verts = {
-        { l, t, z, u0, v0, 0, 0, 1 }, { l, b, z, u0, v1, 0, 0, 1 }, { r, b, z, u1, v1, 0, 0, 1 },
-        { l, t, z, u0, v0, 0, 0, 1 }, { r, b, z, u1, v1, 0, 0, 1 }, { r, t, z, u1, v0, 0, 0, 1 },
+        { left, t, z, u0, v0, 0, 0, nz }, { left, b, z, u0, v1, 0, 0, nz }, { right, b, z, u1, v1, 0, 0, nz },
+        { left, t, z, u0, v0, 0, 0, nz }, { right, b, z, u1, v1, 0, 0, nz }, { right, t, z, u1, v0, 0, 0, nz },
       }
       x0, x1, y0, y1, z0, z1 = l, r, b, t, z, z
     end

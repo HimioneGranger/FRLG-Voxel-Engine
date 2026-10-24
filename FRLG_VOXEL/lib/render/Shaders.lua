@@ -37,6 +37,7 @@ local V = ...
 local _ = V
 
 local Shaders = {}
+local FogBackdrop=V.require("render/FogBackdrop")
 
 Shaders.OPAQUE = [[
 varying LOVE_HIGHP_OR_MEDIUMP vec2 v_uv;
@@ -811,6 +812,7 @@ local radialUniform = {0,0,0,0}
 -- the previous map's cut origin. Ordinary field shaders receive nothing.
 local cutOrigin={0,0,0}
 function Shaders.dark(shader,env,rec)
+  FogBackdrop.send(shader,env,rec)
   local cut=Shaders.override
   if cut and (shader==cut.OPAQUE or shader==cut.CUTOUT)then
     cutOrigin[1],cutOrigin[2],cutOrigin[3]=rec and rec.ox or 0,0,rec and rec.oz or 0
@@ -838,6 +840,7 @@ function Shaders.dark(shader,env,rec)
 end
 local WORLD_ONE,WORLD_ZERO={1,1,1},{0,0,0}
 function Shaders.frame(shader, env, alphaCut)
+  V.require("render/FrlgTreeLod").disable(shader)
   local wl=env.worldLighting
   if Perf.hoist then
     local c=cacheFor(shader);sendT(c,shader,'u_worldMul',wl and wl.mul or WORLD_ONE);sendT(c,shader,'u_worldAdd',wl and wl.add or WORLD_ZERO)
@@ -875,7 +878,10 @@ function Shaders.release()
   Shaders.invalidateCache() -- Lab 55
 end
 
+Shaders.OPAQUE=FogBackdrop.decorate(Shaders.OPAQUE)
+Shaders.CUTOUT=FogBackdrop.decorate(Shaders.CUTOUT)
 local GrassDeform=V.require("grass/GrassDeform")
 Shaders.OPAQUE=GrassDeform.decorate(Shaders.OPAQUE)
 Shaders.CUTOUT=GrassDeform.decorate(Shaders.CUTOUT)
+Shaders.CUTOUT=V.require("render/FrlgTreeLod").decorate(Shaders.CUTOUT)
 return Shaders

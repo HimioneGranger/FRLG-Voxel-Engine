@@ -1,5 +1,5 @@
 {
-  "version": "0.1.0-beta.5",
+  "version": "0.1.0-beta.6",
   "files": [
     {
       "path": ".gitignore",
@@ -628,8 +628,8 @@
     },
     {
       "path": "FRLG_VOXEL/lib/compat/legacyBridge/lib/compat/WildsReachCompat.lua",
-      "bytes": 24151,
-      "sha256": "7ff278876644d7e4bd6707dcf8291174c3da1bc2d086a4665e0e832fef4be22d"
+      "bytes": 29044,
+      "sha256": "936e63d642850533a517b226f9966dc3f581a670c56ba1b49b03fee2cc5b086e"
     },
     {
       "path": "FRLG_VOXEL/lib/compat/legacyBridge/lib/compat/WildsSnapshotCompat.lua",
@@ -818,8 +818,8 @@
     },
     {
       "path": "FRLG_VOXEL/lib/mesh/FrlgMesher.lua",
-      "bytes": 1950829,
-      "sha256": "2ef62d693d3b16ae2ec38baa17d0d5f3216a3e35602b0a23018842adf9482886"
+      "bytes": 1951613,
+      "sha256": "5016319c59b764b9deb4268296a50dc0e30c67c870d5aa56544270e091aebbd5"
     },
     {
       "path": "FRLG_VOXEL/lib/mesh/FrlgNativeFoliage.lua",
@@ -838,13 +838,13 @@
     },
     {
       "path": "FRLG_VOXEL/lib/mesh/FrlgTreeModels.lua",
-      "bytes": 18673,
-      "sha256": "e02ebb82dbd420f58e32af821db5508733f21794cc29acb4ed3e4cbc58f65cdb"
+      "bytes": 18773,
+      "sha256": "7eb45bafc4164d4022f8eba4532bfc309b6a0a718bd595de819dc85a7d616ee3"
     },
     {
       "path": "FRLG_VOXEL/lib/mesh/FrlgVoxelTree.lua",
-      "bytes": 29849,
-      "sha256": "5a8101ea08314a7a43729dc6be34e765cea74401cfad3a5cc79fd034c51bdc91"
+      "bytes": 30293,
+      "sha256": "fbc11a0134cff2bfe51aff6f6025ff19d67f568dcf2ccb269d11512b5160c8a4"
     },
     {
       "path": "FRLG_VOXEL/lib/mesh/LaboratoryProfiles.lua",
@@ -1103,8 +1103,8 @@
     },
     {
       "path": "FRLG_VOXEL/lib/perf/FrPrecacheDependencies.lua",
-      "bytes": 2639,
-      "sha256": "8564ec225720345565fdc6f9feb0f1ac0c62dcefeee8f3d0a2e8e3f27ca701f2"
+      "bytes": 2786,
+      "sha256": "8f72480a4c6efa2e062aaa25bfd536d4760efc77eff659922d362eb4c46ce383"
     },
     {
       "path": "FRLG_VOXEL/lib/perf/FrPrecacheFormat.lua",
@@ -1128,13 +1128,13 @@
     },
     {
       "path": "FRLG_VOXEL/lib/perf/FrPrecacheLegacy.lua",
-      "bytes": 2388,
-      "sha256": "81c8b95eb4ad7efa3b613f68e582f4e4e179f17cfbbb13847103393c4292704f"
+      "bytes": 3263,
+      "sha256": "3292800348bd85f7fbfc38bd7b55cfe7babca7c0bbba2c8d042d130f11075910"
     },
     {
       "path": "FRLG_VOXEL/lib/perf/FrPrecacheReuse.lua",
-      "bytes": 2201,
-      "sha256": "55e68a0a42d75ac321fa6d1d1329d71657f57059a88a365b29e46169e79a68fe"
+      "bytes": 3040,
+      "sha256": "baafa9f581026f77864b12e795cee46405dc530379895e416c486c2a655f5944"
     },
     {
       "path": "FRLG_VOXEL/lib/perf/FrPrecacheStore.lua",
@@ -1168,8 +1168,8 @@
     },
     {
       "path": "FRLG_VOXEL/lib/perf/FrPrepareCpuSigns.lua",
-      "bytes": 1888,
-      "sha256": "922111b3581b97cf296ac9573eeeb4dcb949867fb1362d737f22d3163b4d1623"
+      "bytes": 1949,
+      "sha256": "8b561baa2f0088bd4b8884775f1274b366eb8578ba259e7ac6728703b82dc422"
     },
     {
       "path": "FRLG_VOXEL/lib/perf/FrPrepareCpuSnapshot.lua",
@@ -1327,9 +1327,14 @@
       "sha256": "4eaf5740b4d8c2949ecdbc521e34c28033ed4e2376c3c78f8be4d6e6f28791d3"
     },
     {
+      "path": "FRLG_VOXEL/lib/render/FogBackdrop.lua",
+      "bytes": 6315,
+      "sha256": "4eb75caec8e3dd879cc2f0b44f77136037ca80d49eec76be1e51657d22e4d611"
+    },
+    {
       "path": "FRLG_VOXEL/lib/render/FrFog.lua",
-      "bytes": 1674,
-      "sha256": "fa2e0615bc197972933d4dd5e35834124cf2fd864c3f79e8d4f5d4c3481ad6b7"
+      "bytes": 1905,
+      "sha256": "974456a6ad2a7e39c61b5ea26cef656ce8c65b33323e8d652fa593eeebf8f975"
     },
     {
       "path": "FRLG_VOXEL/lib/render/FrLightingBuild.lua",
@@ -1357,14 +1362,19 @@
       "sha256": "3ae5623629b87b4efff70024736b1931b7b9c35344c9bc9f4895e6f5c14ff838"
     },
     {
+      "path": "FRLG_VOXEL/lib/render/FrlgTreeLod.lua",
+      "bytes": 2017,
+      "sha256": "8a94b11bb4e053f275e3dff775467b70a94e7f6c59bae29b5f030556d53b0b7b"
+    },
+    {
       "path": "FRLG_VOXEL/lib/render/FrlgTreeView.lua",
       "bytes": 2918,
       "sha256": "5218ff410ca28527a98adaa542d807202d81333413eb866cfa1e25ecccbf5cda"
     },
     {
       "path": "FRLG_VOXEL/lib/render/FrlgVoxelTrees.lua",
-      "bytes": 7080,
-      "sha256": "d6b478386ed3722025fba492c1af96500693a6d4993ecd01fb99f0a814068b10"
+      "bytes": 9685,
+      "sha256": "21eefd9afa54912e02744cbafc94537382af5e90b40c324748ac672b3cc3d69c"
     },
     {
       "path": "FRLG_VOXEL/lib/render/Gen3StormGrade.lua",
@@ -1443,8 +1453,8 @@
     },
     {
       "path": "FRLG_VOXEL/lib/render/Shaders.lua",
-      "bytes": 40090,
-      "sha256": "b280d172f14f40f204e921f167daf9f114056a4b6adfcc4a51a0289b5974747c"
+      "bytes": 39520,
+      "sha256": "382955e83afad739123c5890c3521f40eb31241666a47070981c1c71bf46a180"
     },
     {
       "path": "FRLG_VOXEL/lib/render/SignPixelFont.lua",
@@ -1453,13 +1463,13 @@
     },
     {
       "path": "FRLG_VOXEL/lib/render/SignRuntime.lua",
-      "bytes": 23720,
-      "sha256": "90a86c4a773a95293f7ab7fdec63ac4210c1c7e63acb8cc79524f4457acf7f80"
+      "bytes": 25190,
+      "sha256": "b84c4710baa14b9679299cce3743b92d2cdbaff776e298ecf4d90c966b9cf769"
     },
     {
       "path": "FRLG_VOXEL/lib/render/Sky.lua",
-      "bytes": 11780,
-      "sha256": "f95b949ef52454fde553d329d60c3c0eac85e6fe4c0432c42b502751edc58b19"
+      "bytes": 13092,
+      "sha256": "840ceda2bc2413a7da56e8197937ef7204fcf9923e32086e2c443e80f51c0365"
     },
     {
       "path": "FRLG_VOXEL/lib/render/SolarShadows.lua",
@@ -1473,8 +1483,8 @@
     },
     {
       "path": "FRLG_VOXEL/lib/render/View.lua",
-      "bytes": 38669,
-      "sha256": "fdde36cea11dd3e56f5b3b4b67da7849fe9a0eb196068c2aaa58322b881e1759"
+      "bytes": 39025,
+      "sha256": "4124c52d3af0f077894a20a1ad0034a09758e4967a2f7e044f03252ecfc78bb7"
     },
     {
       "path": "FRLG_VOXEL/lib/render/VoxelLoading.lua",
@@ -1489,7 +1499,7 @@
     {
       "path": "FRLG_VOXEL/manifest.json",
       "bytes": 664,
-      "sha256": "a22999204b59c0cab288551cfa9c5ec89263cd260dda308a7cd2561eca320d79"
+      "sha256": "62a3a0d954b130b9575600f94e4df8c910bfcbadd731c865525c910d97b68f34"
     },
     {
       "path": "FRLG_VOXEL/tools/update_consumer_lookups.py",
@@ -1503,8 +1513,8 @@
     },
     {
       "path": "README.md",
-      "bytes": 4597,
-      "sha256": "0ef619c64ff0dbe9ae8cae54b4bd5e65d2decc4867cb4ebd487a9b7308c4ce59"
+      "bytes": 4719,
+      "sha256": "41f8db65e5a6cc83364854adc73e42eb94a824c09a1846588bb3c75419efc09d"
     },
     {
       "path": "THIRD_PARTY_NOTICES.md",
@@ -1513,8 +1523,8 @@
     },
     {
       "path": "docs/CHANGELOG.md",
-      "bytes": 5282,
-      "sha256": "d8e6172159d271ac7edc6048bde8539c5384311ab39d5917ee51225f7774c6da"
+      "bytes": 6451,
+      "sha256": "4fd27beba685857b77e15ea3c5af22957885d55f4d3316a5d5597fec251d55a3"
     },
     {
       "path": "docs/CONSUMER_UPDATES.md",
@@ -1524,7 +1534,7 @@
     {
       "path": "docs/TECHNICAL_NOTES.md",
       "bytes": 5790,
-      "sha256": "93e6dfcd631077baab6adbe59514aa111025c43ea876c5227af582cd03d4b357"
+      "sha256": "3af38554225f78729d48c85795b63687fc285473022f3e522eca6c6c30ade0fb"
     },
     {
       "path": "docs/screenshots/buildings.png",

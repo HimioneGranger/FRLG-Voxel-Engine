@@ -2,9 +2,11 @@ local V=...
 local S=V.require("render/Shaders")
 local Deform=V.require("grass/GrassDeform")
 local VoxelTree=V.require("mesh/FrlgVoxelTree")
-local M={VERSION="fr-voxel-trees 1"}
+local M={VERSION="fr-voxel-trees 2"}
 
-M.NEAR_CELLS=20
+M.NEAR_CELLS=18
+M.TRANSITION_START_CELLS=16
+M.TRANSITION_END_CELLS=20
 M.BUCKET_CELLS=4
 M.RESTING_GRASS=2
 M.LAYERS={"under","over"}
@@ -52,9 +54,11 @@ function R:build(rec,out)
   self:releaseRecord(rec)
   if not out or #out.trees==0 then return 0 end
   local buckets,order,groups,byTemplate={},{},{},{}
-  local function group(template)
-    local g=byTemplate[template]
-    if not g then g={template=template,capacity=0,rows={},count=0};byTemplate[template]=g;groups[#groups+1]=g end
+  local function group(template,pass)
+    local byPass=byTemplate[template]
+    if not byPass then byPass={};byTemplate[template]=byPass end
+    local g=byPass[pass]
+    if not g then g={template=template,pass=pass,capacity=0,rows={},count=0};byPass[pass]=g;groups[#groups+1]=g end
     return g
   end
   for _,tree in ipairs(out.trees) do
@@ -76,7 +80,10 @@ function R:build(rec,out)
   local tris=0
   for _,bucket in ipairs(order) do
     bucket.count=#bucket.offsets
-    bucket.nearGroup,bucket.farGroup=group(bucket.near),group(bucket.far)
+    local same=bucket.near==bucket.far
+    bucket.nearGroup,bucket.farGroup=group(bucket.near,same and 0 or 1),group(bucket.far,same and 0 or -1)
+    bucket.radius=max(bucket.near.radius,bucket.far.radius)
+    bucket.height=max(bucket.near.height,bucket.far.height)
     bucket.nearGroup.capacity=bucket.nearGroup.capacity+bucket.count
     if bucket.farGroup~=bucket.nearGroup then bucket.farGroup.capacity=bucket.farGroup.capacity+bucket.count end
     tris=tris+bucket.far.tris*bucket.count
@@ -113,31 +120,74 @@ local function drawInstances(mesh,bucket,texture,shader,state)
   mesh:detachAttribute("VertexGrassOffset")
 end
 
+local function append(g,offset)
+  local n=g.count+1
+  if g.rows[n]~=offset then g.rows[n]=offset;g.dirty=true end
+  g.count=n
+end
+
 function R:draw(scene,env,planes,visible,shader,counters)
   local state=self.drawState or {};self.drawState=state;state.texture=nil;state.rec=nil
   local resting=false
   local nearSquared=M.NEAR_CELLS*M.NEAR_CELLS
+  local beginSquared=M.TRANSITION_START_CELLS*M.TRANSITION_START_CELLS
+  local endSquared=M.TRANSITION_END_CELLS*M.TRANSITION_END_CELLS
+  local farSquared=env.far*env.far
+  -- The companion CUTOUT shader uses a constant root-distance blend per
+  -- instance. Older shaders keep a single LOD instead of drawing both whole.
+  local transition=shader.hasUniform and shader:hasUniform("u_treeLod") and shader:hasUniform("u_treeLodCamera")
+  local lod=state.lod or {0,0,0,0};state.lod=lod
+  local camera=state.camera or {0,0};state.camera=camera
+  lod[1],lod[2],lod[3],lod[4]=0,M.TRANSITION_START_CELLS,M.TRANSITION_END_CELLS,0
+  S.send(shader,"u_treeLod",lod)
   for _,rec in ipairs(scene.visible or {}) do
     local groups=rec.frVoxelTreeGroups
     if groups then
-      for _,g in ipairs(groups) do g.count=0 end
-      -- Rebuild for every eye; retain the exact original bucket bounds and LOD test.
+      for _,g in ipairs(groups) do g.count=0;g.dirty=false end
+      -- Bucket bounds remain a conservative broad phase. Select and cull each
+      -- tree independently so a nearby neighbour cannot promote a whole block.
+      -- Visibility is still evaluated per eye; LOD uses the shared head centre.
       for _,bucket in ipairs(rec.frVoxelTrees or {}) do
         local x0,z0,x1,z1=bucket.x0+rec.ox,bucket.z0+rec.oz,bucket.x1+rec.ox,bucket.z1+rec.oz
         local dx=max(x0-env.camX,0,env.camX-x1)
         local dz=max(z0-env.camZ,0,env.camZ-z1)
         local distanceSquared=dx*dx+dz*dz
-        if distanceSquared<=env.far*env.far and visible(planes,x0,bucket.y0,z0,x1,bucket.y1,z1) then
-          local g=distanceSquared<=nearSquared and bucket.nearGroup or bucket.farGroup
-          for i=1,bucket.count do g.count=g.count+1;g.rows[g.count]=bucket.offsets[i] end
-          counters.tris=counters.tris+g.template.tris*bucket.count
+        if distanceSquared<=farSquared and visible(planes,x0,bucket.y0,z0,x1,bucket.y1,z1) then
+          local radius,height=bucket.radius,bucket.height
+          for _,offset in ipairs(bucket.offsets) do
+            local x,y,z=offset[1]+rec.ox,offset[2],offset[3]+rec.oz
+            local tx,tz=max(x-radius-env.camX,0,env.camX-x-radius),max(z-radius-env.camZ,0,env.camZ-z-radius)
+            if tx*tx+tz*tz<=farSquared and visible(planes,x-radius,y,z-radius,x+radius,y+height,z+radius) then
+              local cx,cz=x-env.camX,z-env.camZ
+              local d2=cx*cx+cz*cz
+              if bucket.nearGroup==bucket.farGroup then
+                append(bucket.nearGroup,offset)
+              elseif transition then
+                if d2<endSquared then append(bucket.nearGroup,offset) end
+                if d2>beginSquared then append(bucket.farGroup,offset) end
+              else
+                append(d2<=nearSquared and bucket.nearGroup or bucket.farGroup,offset)
+              end
+            end
+          end
         end
       end
       for _,g in ipairs(groups) do
         if g.count>0 then
           if not resting then S.send(shader,"u_grassOn",M.RESTING_GRASS);resting=true end
-          if state.rec~=rec then bindRecord(scene,env,shader,rec);state.rec=rec end
-          g.instances:setVertices(g.rows,1,g.count)
+          if state.rec~=rec then
+            bindRecord(scene,env,shader,rec);state.rec=rec
+            camera[1],camera[2]=env.camX-rec.ox,env.camZ-rec.oz
+            S.send(shader,"u_treeLodCamera",camera)
+          end
+          lod[1]=transition and g.pass or 0
+          S.send(shader,"u_treeLod",lod)
+          -- Both eyes keep separate visibility decisions. Only the upload is
+          -- reused when the ordered instance membership is exactly identical.
+          if g.dirty or g.uploadCount~=g.count then
+            g.instances:setVertices(g.rows,1,g.count);g.uploadCount=g.count
+          end
+          counters.tris=counters.tris+g.template.tris*g.count
           for _,layer in ipairs(M.LAYERS) do
             local mesh=g.template.layers[layer]
             local texture
@@ -148,6 +198,7 @@ function R:draw(scene,env,planes,visible,shader,counters)
       end
     end
   end
+  lod[1]=0;S.send(shader,"u_treeLod",lod)
   if resting then Deform.disable(shader) end
 end
 

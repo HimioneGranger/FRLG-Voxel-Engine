@@ -1,8 +1,8 @@
-# Beta 5 technical notes
+# Beta 6 technical notes
 
 This repository distributes the FRLG renderer and internal adapters. The host,
 ROM import, game simulation, platform services and optional gameplay mods remain
-separate. FireRed lab 3253 is the reference integration (engine 0.3.33, mod API 2,
+separate. FireRed lab 3255 is the reference integration (engine 0.3.33, mod API 2,
 LÖVE graphics, plus OpenXR on Quest). The manifest's broad host version range
 does not establish compatibility with every host in that range.
 
@@ -39,7 +39,7 @@ The public package omits the lab's embedded Gen 5 sprite provider and its
 provider-specific notices. `ImportedSprites.lua` retains beta 4's external
 provider route; without a compatible separately installed provider and pack,
 it falls back to native battle artwork. The host's importer is not bundled.
-This is an explicit exception to the lab3253 source import, alongside the
+This is an explicit exception to the lab3255 source import, alongside the
 public beta version metadata; the full lab's imported-sprite workflow is not
 included. The existing project license and third-party notices are unchanged.
 

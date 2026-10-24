@@ -388,6 +388,11 @@ local function volume(grid,size)
   local dims={ceil(grid.width/size),ceil(grid.height/size),ceil(2*radius)}
   local sources={projected={},wrapped={},top={},bottom={}}
   local form=grid.boughModel
+  -- Move the existing canopy assembly only; evaluate native leaf samples
+  -- in its original coordinates so the leaf artwork follows the geometry.
+  local canopyOffset=form.canopyOffsetY
+  if canopyOffset==nil then canopyOffset=0 end
+  assert(type(canopyOffset)=="number" and canopyOffset==canopyOffset and canopyOffset>=-8 and canopyOffset<=0,"invalid canopyOffsetY")
   local green,bark,leafPalette={},{},{}
   local darkest,darkValue=nil,math.huge
   for py=0,grid.height-1 do
@@ -509,12 +514,13 @@ local function volume(grid,size)
   end end
   for vy=0,dims[2]-1 do
     local height=grid.height-(vy+.5)*size
+    local canopyHeight=height-canopyOffset
     if height>=0 then for vx=0,dims[1]-1 do for vz=0,dims[3]-1 do
       local col=columns[vz*dims[1]+vx+1]
       local inside=false
       local undersideSpan
       for _,span in ipairs(col.spans)do
-        if height>=span.lower and height<=span.upper then
+        if canopyHeight>=span.lower and canopyHeight<=span.upper then
           inside=true
           if not form.undersideMassReturn then break end
           -- Lowest containing span owns this union's downward boundary.
@@ -524,10 +530,10 @@ local function volume(grid,size)
       local stem=col.x*col.x+col.z*col.z<=form.rootRadius*form.rootRadius and height<=form.rootTop
       local index=(vz*dims[2]+vy)*dims[1]+vx+1
       if inside then
-        local sy=form.artBase-height*form.artVertical+abs(col.z)*form.artDepth
+        local sy=form.artBase-canopyHeight*form.artVertical+abs(col.z)*form.artDepth
         local front=sourceAt(grid.width/2+col.x,sy,false)
         local aspect=grid.width/(2*grid.radius)
-        local sideY=form.artBase-height*form.artVertical+abs(col.x/aspect)*form.artDepth
+        local sideY=form.artBase-canopyHeight*form.artVertical+abs(col.x/aspect)*form.artDepth
         local side=sourceAt(grid.width/2+col.z*aspect,sideY,false)
         sources.projected[index]=front;sources.wrapped[index]=side
         -- Continue native top artwork toward the nearest cardinal side.

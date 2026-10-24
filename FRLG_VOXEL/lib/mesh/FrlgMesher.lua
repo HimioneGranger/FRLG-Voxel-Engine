@@ -12651,7 +12651,7 @@ local native={cells={
           end
           signCount = signCount + 1
         elseif cell.signKind == "board" and uv then
-          -- Prepared text owns exactly this native front, never an offset decal.
+          -- Prepared text owns the native board planes, never offset decals.
           local function labelled(style,l,r,bot,top,z,ua,va,ub,vb)
             local key=tostring(x)..","..tostring(y)
             if not (input.signLabelsReady and input.signLabelsReady[key]) then return false end
@@ -12660,16 +12660,19 @@ local native={cells={
               u0=ua,v0=va,u1=ub,v1=vb,normal={0,0,1}}
             return true
           end
-          local function labelledPart(style,part,l,r,bot,top,z,ua,va,ub,vb)
+          local function labelledPart(style,part,l,r,bot,top,z,ua,va,ub,vb,normal)
             local key=tostring(x)..","..tostring(y)
             if not (input.signLabelsReady and input.signLabelsReady[key.."#"..part]) then return false end
             IN.signFaces=IN.signFaces or {}
             IN.signFaces[#IN.signFaces+1]={x=x,y=y,part=part,mid=cell.mid,style=style,x0=l,x1=r,y0=bot,y1=top,z=z,
-              u0=ua,v0=va,u1=ub,v1=vb,normal={0,0,1}}
+              u0=ua,v0=va,u1=ub,v1=vb,normal=normal or {0,0,1}}
             return true
           end
+          local function labelledRear(style,l,r,bot,top,z,ua,va,ub,vb)
+            return labelledPart(style,"back",l,r,bot,top,z,1-ub,va,1-ua,vb,{0,0,-1})
+          end
           -- Outline bands exclude authored ground and shadows from thickness.
-          local function shapedBoard(rect,spans,originY,step,zn,zs,edge,body,skip,frontLayer,openTop,openBottom)
+          local function shapedBoard(rect,spans,originY,step,zn,zs,edge,body,skip,frontLayer,openTop,openBottom,skipRear)
             local function cap(a,b,h,up)
               if b<=a then return end
               local l,r=x0+.1+a*.05,x0+.1+b*.05
@@ -12687,7 +12690,9 @@ local native={cells={
               if not (skip==true or (skip and skip[1]==s[3] and skip[2]==s[4])) then
                 faceQuad(frontLayer or opaque,"down",l,r,zn,zs,bot,top,subRect(rect,s[1]/16,s[3]/16,s[2]/16,s[4]/16))
               end
-              faceQuad(opaque,"up",l,r,zn,zs,bot,top,body)
+              if not (skipRear==true or (skipRear and skipRear[1]==s[3] and skipRear[2]==s[4])) then
+                faceQuad(opaque,"up",l,r,zn,zs,bot,top,body)
+              end
               faceQuad(opaque,"left",l,r,zn,zs,bot,top,edge)
               faceQuad(opaque,"right",l,r,zn,zs,bot,top,edge)
               if not (openTop and i==1) then uncovered(s,spans[i-1],top,true) end
@@ -12702,13 +12707,15 @@ local native={cells={
             local edge=subRect(uv,.5/16,1.5/16,.5/16,1.5/16)
             local body=subRect(uv,1.5/16,.5/16,1.5/16,.5/16)
             local ready=labelled("fr-gym",x0+.1,x0+.85,groundY+.25,groundY+.8,z0+.55,0,0,15/16,11/16)
-            shapedBoard(uv,{{0,15,0,11}},groundY+.8,.05,z0+.45,z0+.55,edge,body,ready and {0,11},nil,true)
+            local back=labelledRear("fr-gym",x0+.1,x0+.85,groundY+.25,groundY+.8,z0+.45,0,0,15/16,11/16)
+            shapedBoard(uv,{{0,15,0,11}},groundY+.8,.05,z0+.45,z0+.55,edge,body,ready and {0,11},nil,true,nil,back and {0,11})
             -- the crest (dome): when prepared, one smooth card in front and a dark silhouette card just behind it
             local crestReady=labelledPart("fr-gym-crest","crest",x0+.1,x0+.85,groundY+.8,groundY+1.15,z0+.51,0,9/16,15/16,1)
             if crestReady then
               local f=IN.signFaces[#IN.signFaces]; local b={}
               for k,v in pairs(f) do b[k]=v end
-              b.z=z0+.49; b.part="crestback"
+              b.z=z0+.49; b.part="crestback"; b.normal={0,0,-1}
+              b.u0,b.u1=f.u1,f.u0 -- retain the original crest silhouette in world coordinates
               IN.signFaces[#IN.signFaces+1]=b
             else
               shapedBoard(overRect(cell.nativeGymTop.mid),{{5,10,9,10},{3,12,10,11},{2,13,11,12},{1,14,12,14},{0,15,14,16}},groundY+1.6,.05,z0+.45,z0+.55,edge,body,nil,cutoutOver,false,true)
@@ -12720,7 +12727,8 @@ local native={cells={
             local edge=subRect(uv,14.5/16,2.5/16,14.5/16,2.5/16)
             local body=subRect(uv,3.5/16,5.5/16,3.5/16,5.5/16)
             local ready=labelled("fr-wood",x0+.15,x0+.85,groundY+.25,groundY+.7,z0+.55,1/16,2/16,15/16,11/16)
-            shapedBoard(uv,{{7,9,0,1},{2,14,1,2},{1,15,2,11},{2,14,11,12}},groundY+.8,.05,z0+.45,z0+.55,edge,body,ready and {2,11})
+            local back=labelledRear("fr-wood",x0+.15,x0+.85,groundY+.25,groundY+.7,z0+.45,1/16,2/16,15/16,11/16)
+            shapedBoard(uv,{{7,9,0,1},{2,14,1,2},{1,15,2,11},{2,14,11,12}},groundY+.8,.05,z0+.45,z0+.55,edge,body,ready and {2,11},nil,nil,nil,back and {2,11})
             local post=subRect(uv,6/16,12/16,10/16,14/16)
             for _,dir in ipairs({"down","up"}) do faceQuad(opaque,dir,x0+.4,x0+.6,z0+.4625,z0+.5375,groundY,groundY+.2,post) end
             for _,dir in ipairs({"left","right"}) do faceQuad(opaque,dir,x0+.4,x0+.6,z0+.4625,z0+.5375,groundY,groundY+.2,edge) end
@@ -12743,7 +12751,9 @@ local native={cells={
             faceQuad(opaque, "down", l,r,zn,zs,top-.05,top,dark)
             end
             local body = subRect(uv,7.5/16,4.5/16,7.5/16,4.5/16)
-            faceQuad(opaque, "up", l,r,zn,zs,bot,top,body)
+            if not labelledRear("fr-metal",l,r,bot,top,zn,0,1/16,1,13/16) then
+              faceQuad(opaque, "up", l,r,zn,zs,bot,top,body)
+            end
             faceQuad(opaque, "left", l,r,zn,zs,bot,top,dark)
             faceQuad(opaque, "right", l,r,zn,zs,bot,top,dark)
             local cap = dark -- Continuous dark top return, matching the front rail.
@@ -26823,7 +26833,7 @@ end
   end
 
   return {
-    signFaces = IN.signFaces or {}, -- Lab 57 SIGNS: replacement fronts for the signs whose texture was prepared
+    signFaces = IN.signFaces or {}, -- Readable native board planes whose textures were prepared
     opaque = opaque,
     cutoutUnder = cutoutUnder,
     cutoutOver = cutoutOver,

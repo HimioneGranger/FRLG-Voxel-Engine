@@ -560,6 +560,13 @@ local function renderBody(self, canvas, eye, opts)
   end
   env.radialFog=self.radialFog
   env.fog,env.fogFar=FrFog.limit(env.fog,env.fogFar,env.radialFog,env.far,self._cameraFog)
+  env.fogBackdrop=nil
+  if env.radialFog and env.fog[3]>.9 and not self.caveDark.frame.enabled then
+    local fx,fy,fz=cam:eyeWorld(eye.pose)
+    self._fogEye=self._fogEye or {};self._fogEye[1],self._fogEye[2],self._fogEye[3]=fx,fy,fz
+    self._fogBackdrop=Sky.fogBackdrop(self._fogEye,self._fogBackdrop)
+    env.fogBackdrop=self._fogBackdrop
+  end
   env.worldLighting=self.worldLighting
   env.lightingManaged=self.scene.lighting~=nil
   env.nativeFlash = self.caveDark.frame

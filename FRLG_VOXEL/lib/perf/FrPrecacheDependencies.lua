@@ -2,6 +2,8 @@
 -- presentation modules are not read by Scene's capture producer.
 local M={}
 local excluded={
+ -- Live encounter placement and reach scheduling; not a Scene record producer.
+ ['lib/compat/legacyBridge/lib/compat/WildsReachCompat.lua']=true,
  ['manifest.json']=true,
  ['lib/quest/SaveViewCapture.lua']=true, -- clean save-view presentation only
  ['lib/render/AtmosTime.lua']=true,['lib/render/AtmosSky.lua']=true,

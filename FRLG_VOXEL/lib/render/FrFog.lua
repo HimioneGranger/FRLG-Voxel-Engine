@@ -24,12 +24,18 @@ function M.limit(fog,far,radial,cells,scratch)
  if not(radial and fog and fog[3]>0 and type(cells)=='number' and cells>0) then return fog,far end
  local scale,bias=radial[3],radial[4]
  local cap=cells*scale+bias
- if cap>=far then return fog,far end
+ local strong=fog[3]>.9
+ if cap>=far then
+  if not strong or fog[3]==1 then return fog,far end
+  local out=scratch~=fog and scratch or nil;out=out or {}
+  out[1],out[2],out[3]=fog[1],fog[2],1
+  return out,far
+ end
  local finish=bias+math.max(cells*.5,cells-6)*scale
  local ratio=math.max(0,(finish-bias)/math.max(.001,fog[2]-bias))
  local start=bias+math.max(0,fog[1]-bias)*ratio
- local out=scratch or {}
- out[1],out[2],out[3]=math.min(start,finish-.001),finish,fog[3]
+ local out=scratch~=fog and scratch or nil;out=out or {}
+ out[1],out[2],out[3]=math.min(start,finish-.001),finish,strong and 1 or fog[3]
  return out,cap
 end
 return M

@@ -1,3 +1,25 @@
+# Beta 6
+
+Engine fixes from the tested FireRed lab 3255 packages:
+
+- Distance fog blends the world into the sky backdrop and hides far silhouettes.
+- Tree visibility and near/far transitions reduce abrupt popping, with lighter
+  distant geometry. The Forest canopy sits lower to reduce exposed trunk.
+- Wilds land spawns favor actual travel direction while retaining nearby limits,
+  gradual departures and protected encounters. Head turns do not relocate them.
+- Sign backs remain readable and reverse every navigation arrow, including
+  Viridian's Route 1, Route 2 and Route 22 directions.
+- A sign texture correction can reuse a completed matching geometry cache;
+  changes to trees, meshes or other producers still invalidate their records.
+
+Upgrading from public beta 5 may prepare new records because the Forest geometry
+changed. Do not clear app data or valid caches. This engine-only ZIP retains
+the existing external Gen 5 provider adapter, original artwork, building/cave
+outputs and private-use license. The host, optional mods, Steam Frame launcher
+and separate Windows PCVR host trial remain external. No headset FPS guarantee.
+
+---
+
 # Beta 5
 
 Engine foliage and preparation work from FireRed lab3253:

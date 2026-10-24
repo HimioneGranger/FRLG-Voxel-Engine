@@ -42,6 +42,9 @@
 -- near-player3-12cell band for new/refill encounters, bounded free probes and
 -- stock fallback. Distant ordinary land residents leave through native effects,
 -- one at a time, so the native refill follows a continuously moving player.
+-- Directional refinement: existing reachable cells ahead of actual travel are
+-- weighted more heavily, with settled native facing as the idle fallback.
+-- This changes placement priority only; no new cells, species, caps or fades.
 -- Mod sandbox: no package, no debug. Engine modules only through pcall(require).
 local M = {}
 
@@ -64,6 +67,11 @@ local EMPTY = {}
 -- changing encounter rolls, eligible counts or the eight-mon cap.
 M.NEAR_MIN_CELLS, M.NEAR_MAX_CELLS, M.NEAR_PROBES = 3, 12, 8
 M.RETIRE_CELLS, M.RETIRE_TICKS = 16, 30
+-- Prefer actual travel, not head pose. Native facing is only a settled idle
+-- fallback; it changes future choices, never relocates an existing Pokemon.
+M.DIRECTION_IDLE_TICKS, M.DIRECTION_SETTLE_TICKS = 120, 30
+M.DIRECTION_RECENT_TICKS, M.DIRECTION_MAX_STEP = 60, 4
+M.DIRECTION_WEIGHT, M.DIRECTION_BASE_WEIGHT = 75, 100
 
 local S = nil -- installed state (nil when not installed)
 
@@ -253,6 +261,52 @@ local function stepJob(st, self)
   return true
 end
 
+local FACING = {up={0,-1}, down={0,1}, left={-1,0}, right={1,0}}
+local function finite(n) return type(n)=="number" and n==n and math.abs(n)<math.huge end
+
+local function updateDirection(st, sm)
+  if not st.nearby then return end
+  local P, tick = st.Player, tonumber(sm.ticks) or 0
+  if not (P and finite(P.cellX) and finite(P.cellY) and finite(tick)) then
+    st.direction=nil
+    return
+  end
+  local x,y=P.cellX,P.cellY
+  local d=st.direction
+  local dx,dy=d and x-d.x or 0,d and y-d.y or 0
+  local moved2=dx*dx+dy*dy
+  if not d or d.map~=sm.mapId or tick<d.tick or moved2>M.DIRECTION_MAX_STEP^2 then
+    if d then st.directionResets=st.directionResets+1 end
+    local face=FACING[P.facing]
+    d={map=sm.mapId,x=x,y=y,tick=tick,lastMove=tick,
+      facing=P.facing,facingSince=tick,source=face and "facing" or "none"}
+    if face then d.hx,d.hy,d.vx,d.vy=face[1],face[2],face[1],face[2] end
+    st.direction=d
+    return
+  end
+  if P.facing~=d.facing then d.facing,d.facingSince=P.facing,tick end
+  if moved2>0 then
+    local distance=math.sqrt(moved2)
+    local mx,my=dx/distance,dy/distance
+    if d.source=="movement" and tick-d.lastMove<=M.DIRECTION_RECENT_TICKS then
+      -- Keep the unnormalized history: normalizing every step would prevent
+      -- a smoothed vector from reversing after a genuine 180-degree turn.
+      d.vx,d.vy=.55*d.vx+.45*mx,.55*d.vy+.45*my
+    else d.vx,d.vy=mx,my end
+    local length=math.sqrt(d.vx*d.vx+d.vy*d.vy)
+    if length>.1 then d.hx,d.hy=d.vx/length,d.vy/length end
+    d.source,d.lastMove="movement",tick
+  elseif tick-d.lastMove>=M.DIRECTION_IDLE_TICKS
+    and tick-d.facingSince>=M.DIRECTION_SETTLE_TICKS then
+    local face=FACING[d.facing]
+    if face then
+      d.hx,d.hy,d.vx,d.vy=face[1],face[2],face[1],face[2]
+      d.source="facing"
+    end
+  end
+  d.x,d.y,d.tick=x,y,tick
+end
+
 -- Shared read-only local view, invalidated by native view identity or player cell.
 local function nearPool(st, source, P)
   local list=source.view and source.view.land
@@ -267,7 +321,38 @@ local function nearPool(st, source, P)
     end
     st.nearCache=c;st.nearBuilds=st.nearBuilds+1
   end
+  local d=st.direction
+  local hx,hy=d and d.hx,d and d.hy
+  if c.hx~=hx or c.hy~=hy or not c.weights then
+    c.hx,c.hy,c.weights,c.cumulative,c.weightTotal=hx,hy,{},{},0
+    if hx and hy then
+      for i,cell in ipairs(c.pool)do
+        local dx,dy=cell.x-c.x,cell.y-c.y
+        local dot=(dx*hx+dy*hy)/math.sqrt(dx*dx+dy*dy)
+        local weight=math.floor(M.DIRECTION_BASE_WEIGHT+M.DIRECTION_WEIGHT*dot+.5)
+        c.weights[i]=weight;c.weightTotal=c.weightTotal+weight;c.cumulative[i]=c.weightTotal
+      end
+    end
+    st.directionBuilds=st.directionBuilds+1
+  end
   return c
+end
+
+-- Weighted sampling without replacement. The short exclusion list is bounded
+-- by eight probes; binary search avoids rescanning a map-sized list per probe.
+-- Thus a blocked front tile cannot consume every probe while side cells are free.
+local function weightedIndex(c, pick, excluded, removedWeight)
+  local target=pick(1,c.weightTotal-removedWeight)
+  local lo,hi=1,#c.pool
+  while lo<hi do
+    local mid=math.floor((lo+hi)/2)
+    local cumulative=c.cumulative[mid]
+    for _,index in ipairs(excluded)do
+      if index<=mid then cumulative=cumulative-c.weights[index] end
+    end
+    if target<=cumulative then hi=mid else lo=mid+1 end
+  end
+  return lo
 end
 
 -- Native spawning counts LEAVING entities separately from active ones. Never
@@ -293,7 +378,9 @@ local function refreshResidents(st, sm)
     if sm:_cellFree(cell.x,cell.y)then free=true;break end
   end
   if not free then return end
-  local far, far2 = nil, M.RETIRE_CELLS^2
+  local far, score = nil, -math.huge
+  local d=st.direction
+  local travel=d and d.source=="movement" and tick-d.lastMove<=M.DIRECTION_RECENT_TICKS and d.hx and d.hy
   for _, e in pairs(sm.entities or EMPTY) do
     if e.terrain=="land" and e.state=="available" and not st.protected[e]
       and not (e.engaged or e._vrCapture or e.shiny or e.roamer or e.lured or e.react
@@ -301,8 +388,13 @@ local function refreshResidents(st, sm)
         or e.noFight or e.rare or e.legendary or e.static or e.scripted or e.isStatic
         or e.rareTier or e.rarityTier)
       and type(e.cellX)=="number" and type(e.cellY)=="number" then
-      local d2=(e.cellX-P.cellX)^2+(e.cellY-P.cellY)^2
-      if d2>far2 then far,far2=e,d2 end
+      local dx,dy=e.cellX-P.cellX,e.cellY-P.cellY
+      local d2=dx*dx+dy*dy
+      if d2>M.RETIRE_CELLS^2 then
+        local rank=d2
+        if travel then rank=rank*(1-.5*(dx*d.hx+dy*d.hy)/math.sqrt(d2)) end
+        if rank>score then far,score=e,rank end
+      end
     end
   end
   if far then
@@ -363,6 +455,7 @@ function M.install(ctx)
     sliceCalls = 0, totalCalls = 0, armed = false, inCanEnter = false,
     started = 0, completed = 0, cancelled = 0, errors = 0, slices = 0, maxSliceCalls = 0,
     lastCells = 0, lastCalls = 0, lastTicks = 0,
+    directionBuilds=0, directionResets=0, directionalPicks=0,
   }
   st.wrappers = buildWrappers(st)
 
@@ -373,6 +466,7 @@ function M.install(ctx)
 
   setOverride(st, sm, "_checkReach", function(self)
     if S ~= st or self ~= sm then return end
+    updateDirection(st,self)
     if not self.source:isEligible() then return end
     if st.job then stepJob(st, self); return end
     self.reachAge = (self.reachAge or 0) + 1
@@ -393,11 +487,12 @@ function M.install(ctx)
 
   local prevClear, prevRefill = st.prevClearAll, st.prevRefill
   setOverride(st, sm, "clearAll", function(self, ...)
-    if S == st and self == sm then cancel(st);st.nearCache=nil;st.refreshAt=nil;st.protected=setmetatable({}, {__mode="k"}) end
+    if S == st and self == sm then cancel(st);st.nearCache=nil;st.refreshAt=nil;st.direction=nil;st.protected=setmetatable({}, {__mode="k"}) end
     return prevClear(self, ...)
   end)
 
   setOverride(st, sm, "refill", function(self, terrain, ...)
+    if S == st and self == sm then updateDirection(st,self) end
     -- the first measure of a map is still running: never spawn outside the area
     if S == st and self == sm and st.job and not self.reach then return end
     if S == st and self == sm then refreshResidents(st, self) end
@@ -439,15 +534,26 @@ function M.install(ctx)
       if S~=st or self~=source or terrain~="land"or not(P and type(P.cellX)=="number"and type(P.cellY)=="number")or type(list)~="table"then
         return previousRandom(self,terrain,rng)
       end
+      updateDirection(st,sm)
       local c=nearPool(st,self,P)
       local n=#c.pool
       if n>0 then
         local pick=rng or math.random
+        local excluded,removedWeight={},0
         for _=1,math.min(n,M.NEAR_PROBES)do
-          local cell=c.pool[pick(1,n)]
+          local index
+          if c.weightTotal>0 then
+            index=weightedIndex(c,pick,excluded,removedWeight)
+            excluded[#excluded+1]=index;removedWeight=removedWeight+c.weights[index]
+          else index=pick(1,n) end
+          local cell=c.pool[index]
           -- Existing _cellFree owns occupancy and the player's current/next
           -- tile. Recheck on every pick; never cache occupancy between ticks.
-          if sm:_cellFree(cell.x,cell.y)then st.nearPicks=st.nearPicks+1;return cell end
+          if sm:_cellFree(cell.x,cell.y)then
+            st.nearPicks=st.nearPicks+1
+            if c.weightTotal>0 then st.directionalPicks=st.directionalPicks+1 end
+            return cell
+          end
         end
       end
       -- Empty/full local grass must not starve the ordinary native refill.
@@ -523,6 +629,9 @@ function M.status()
     lastCells = st.lastCells, lastCalls = st.lastCalls, lastTicks = st.lastTicks,
     rolling = st.rolling == true, retired = st.retired or 0,
     nearby = st.nearby == true, nearPicks = st.nearPicks or 0, nearFallbacks = st.nearFallbacks or 0, nearBuilds = st.nearBuilds or 0,
+    headingX=st.direction and st.direction.hx,headingY=st.direction and st.direction.hy,
+    headingSource=st.direction and st.direction.source or "none",
+    directionBuilds=st.directionBuilds,directionResets=st.directionResets,directionalPicks=st.directionalPicks,
   }
 end
 

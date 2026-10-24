@@ -30,6 +30,7 @@ function M.apply(input,sign)
    local ok,p=pcall(input.atlas.signTexels or input.atlas.texels,cell.mid,'under')
    if ok and p then
     ready[key]=true
+    if style~='fr-mailbox' then ready[key..'#back']=true end
     if style=='fr-gym'then local north=input.cellAt(x,y-1)
      local po=north and input.atlas.signOverTexels and input.atlas.signOverTexels(north.mid)
      if po then ready[key..'#crest']=true;if type(p[2])=='number'and p[2]>=0 then ready[key..'#crestback']=true end end
