@@ -57,6 +57,135 @@
 --   (MB.FOREST3_PAIRS) as 3-wide tree units.
 -- History: w1/REPORT.md (Rev 1-5), W3 hand-back (roof layering, fences).
 
+-- Exact Saffron pavement rail family. The blue silhouette and clean ground
+-- donors were audited against general__rom_082d4b9c native UNDER/OVER art.
+-- These descriptors never classify ordinary silver post-and-bar fences.
+local function nativeSaffronThin(input,atlas,at)
+  if input.mapId~="FR_SAFFRON_CITY" or input.pair~="general__rom_082d4b9c"
+    or input.isBorder or input.width~=66 or input.height~=56
+    or type(atlas.texels)~="function" or type(atlas.hasOver)~="function"
+    or type(atlas.underRect)~="function" or type(atlas.overRect)~="function"
+    or type(atlas.w)~="number" or type(atlas.h)~="number"
+    or atlas.w~=256 or atlas.h~=336 then return nil end
+  local art={
+    [737]={211654810,0},[744]={30139571,0},[745]={859486658,0},
+    [746]={1197293777,0},[748]={1277037198,0},[756]={1326868942,0},
+    [781]={441763278,0},[792]={2045260983,0},[793]={1111119475,0},
+    [794]={1308717820,0},[796]={1456013361,0},[797]={1800042468,0},
+    [798]={1029680589,0},[800]={30139571,215487112},
+    [802]={1197293777,215487112},[803]={1337620233,0},
+    [805]={668608350,0},[806]={390108498,0},[808]={2142988616,0},
+    [809]={158253294,0},[810]={613877260,0},
+    [813]={461001768,0},[814]={2093810184,0}
+  }
+  local slots={
+    [737]=227,[744]=233,[745]=234,[746]=235,[748]=237,[756]=243,
+    [781]=268,[792]=279,[793]=280,[794]=281,[796]=282,[797]=283,
+    [798]=284,[800]=286,[802]=287,[803]=288,[805]=289,[806]=290,
+    [808]=292,[809]=293,[810]=294,[813]=297,[814]=298
+  }
+  local function validRect(fn,mid)
+    local a,b,c,d=fn(mid)
+    local slot=slots[mid]
+    local col,row=slot%16,math.floor(slot/16)
+    return type(a)=="number" and type(b)=="number"
+      and type(c)=="number" and type(d)=="number"
+      and a==a and b==b and c==c and d==d
+      and math.abs(a*atlas.w-(col*16+1/32))<1e-7
+      and math.abs(b*atlas.h-(row*16+1/32))<1e-7
+      and math.abs(c*atlas.w-(col*16+16-1/32))<1e-7
+      and math.abs(d*atlas.h-(row*16+16-1/32))<1e-7
+  end
+  local function hash(t)
+    if not t then return 0 end
+    local h=0
+    for i=1,256 do
+      local v=t[i]
+      if type(v)~="number" or v~=v or v==math.huge or v==-math.huge then return nil end
+      h=(h*31+(v>=0 and v+2 or 1))%2147483647
+    end
+    return h
+  end
+  for mid,ref in pairs(art)do
+    if not validRect(atlas.underRect,mid)
+      or atlas.hasOver(mid)~=(ref[2]~=0)
+      or hash(atlas.texels(mid,"under"))~=ref[1]
+      or hash(atlas.texels(mid,"over"))~=ref[2] then return nil end
+    if ref[2]~=0 and not validRect(atlas.overRect,mid) then return nil end
+  end
+  local masks={
+    center={"0000000000000000","0000000000000000","0000000000000000",
+      "1111111111111111","1111111111111111","1111111111111111",
+      "1100000000000001","1100000000000001","1100000000000001",
+      "1111111111111111","1100000000000001","1111111111111111",
+      "1100000000000001","1100000000000001","1000000000000000","0000000000000000"},
+    left={"0000000000000000","0000000000000000","0000000000000000",
+      "0000000111111111","0000001111111111","0000001111111111",
+      "0000001110000001","0000001110000001","0000001110000001",
+      "0000001111111111","0000001110000001","0000001111111111",
+      "0000001110000001","0000001110000001","0000000100000000","0000000000000000"},
+    right={"0000000000000000","0000000000000000","0000000000000000",
+      "1111111110000000","1111111111000000","1111111111000000",
+      "1100000111000000","1100000111000000","1100000111000000",
+      "1111111111000000","1100000111000000","1111111111000000",
+      "1100000111000000","1100000111000000","1000000010000000","0000000000000000"}
+  }
+  local blue={[0x424a6b]=true,[0x9ccef7]=true,[0x2152a5]=true,
+    [0x52a5ce]=true,[0xefefef]=true}
+  local function cornerMask(mid)
+    -- Literal source-color segmentation is safe only behind the full art
+    -- hashes above. Rows 14/15 are projected shadows and stay on the floor.
+    local t=atlas.texels(mid,"under")
+    local rows={}
+    for row=0,15 do
+      local s={}
+      for col=0,15 do
+        s[#s+1]=(row>=3 and row<=13 and blue[t[row*16+col+1]])and"1"or"0"
+      end
+      rows[#rows+1]=table.concat(s)
+    end
+    return rows
+  end
+  local cells={}
+  local function add(x,y,mid,ground,mask,axis,turn,splitGrass)
+    local c=at(x,y)
+    if not c or c.mid~=mid or c.coll~=7 or c.elev~=0 then return false end
+    cells[#cells+1]={cell=c,ground=ground,mask=masks[mask]or cornerMask(mid),
+      axis=axis,turnMask=turn and masks[turn]or nil,
+      turnDonor=turn=="left"and 797 or(turn=="right"and 798 or nil),
+      splitGrass=splitGrass,
+      mid=mid,x=x,y=y}
+    return true
+  end
+  for x=15,31 do if not add(x,9,793,737,"center","ew")then return nil end end
+  for y=10,23 do if not add(14,y,800,744,"center","ns")then return nil end end
+  for y=30,42 do if not add(14,y,800,744,"center","ns")then return nil end end
+  for y=15,23 do if not add(53,y,802,746,"center","ns")then return nil end end
+  for y=30,42 do if not add(53,y,802,746,"center","ns")then return nil end end
+  for x=15,18 do if not add(x,43,809,745,"center","ew")then return nil end end
+  for x=51,52 do if not add(x,43,809,745,"center","ew")then return nil end end
+  for _,q in ipairs({
+    {30,14,803,748,"left"},{31,14,781,756,"center"},
+    {32,14,809,745,"center"},{33,14,796,745,"right"},
+    -- x37..41 are already source-owned by the approved Dojo front pass.
+    {43,14,797,756,"left"},
+    {44,14,798,756,"right"},{48,14,797,756,"left"},
+    {49,14,798,756,"right"},{51,14,797,756,"left"},
+    {52,14,809,745,"center"}
+  })do if not add(q[1],q[2],q[3],q[4],q[5],"ew")then return nil end end
+  for _,q in ipairs({
+    {14,9,792,744,"south",true},{32,9,796,745,nil},
+    {53,14,794,746,"south"},{14,24,814,744,"north"},
+    {53,24,813,746,"north"},{14,29,806,744,"south"},
+    {53,29,805,746,"south"},{14,43,808,744,"north"},
+    {53,43,810,746,"north"}
+  })do
+    if not add(q[1],q[2],q[3],q[4],"native","ew",
+      q[5]=="south"and"left"or(q[5]=="north"and"right"or nil),q[6])then return nil end
+  end
+  return cells
+end
+
 local function nativeVermilionRoof(input,comp,atlas)
  if input.mapId~='FR_VERMILION_CITY' or input.pair~='general__rom_082d4b24'
   or input.width~=48 or input.height~=40 or input.isBorder or comp.minX~=25
@@ -3625,6 +3754,67 @@ function M.build(input, deps)
       for _,e in ipairs({"up","down","left","right"})do faceQuad(opaque,e,x0,x1,z0,z1,y0,y1,uv)end
       hQuad(opaque,x0,z0,x1,z1,y1,uv,UP)
       hQuad(opaque,x0,z0,x1,z1,y0,uv,{0,-1,0})
+    end
+  end
+  grid.emitNativeSaffronThin=function(cell,x,z,gy)
+    local p=cell.nativeSaffronThin
+    local first=#opaque+1
+    local donor=p.donor or (p.axis=="ns" and 781 or cell.mid)
+    local r=underRect(donor)
+    local boxes,active={},{}
+    -- Merge occupied source texels vertically first. Full native UV spans
+    -- keep bar highlights while using five closed boxes on a center tile.
+    for col=0,15 do
+      local nextActive={};local row=0
+      while row<16 do
+        if p.mask[row+1]:sub(col+1,col+1)=="1" then
+          local last=row+1
+          while last<16 and p.mask[last+1]:sub(col+1,col+1)=="1" do last=last+1 end
+          local key=row..":"..last
+          local b=active[key]
+          if b then b.x1=col+1 else
+            b={x0=col,x1=col+1,y0=row,y1=last}
+            boxes[#boxes+1]=b
+          end
+          nextActive[key]=b;row=last
+        else row=row+1 end
+      end
+      active=nextActive
+    end
+    for _,b in ipairs(boxes)do
+      local x0,x1=x+b.x0/16,x+b.x1/16
+      local y0,y1=gy+(16-b.y1)/16*C.FENCE_H,gy+(16-b.y0)/16*C.FENCE_H
+      local z0,z1=z+.5-1/64,z+.5+1/64
+      local u0,u1=r[1]+(b.x0+.5)/atlas.w,r[1]+(b.x1-.5)/atlas.w
+      local v0,v1=r[2]+(b.y0+.5)/atlas.h,r[2]+(b.y1-.5)/atlas.h
+      local face={u0,v0,u1,v1}
+      faceQuad(opaque,"down",x0,x1,z0,z1,y0,y1,face)
+      faceQuad(opaque,"up",x0,x1,z0,z1,y0,y1,face)
+      faceQuad(opaque,"left",x0,x1,z0,z1,y0,y1,{u0,v0,u0,v1})
+      faceQuad(opaque,"right",x0,x1,z0,z1,y0,y1,{u1,v0,u1,v1})
+      hQuad(opaque,x0,z0,x1,z1,y1,{u0,v0,u1,v0},UP)
+      hQuad(opaque,x0,z0,x1,z1,y0,{u0,v1,u1,v1},{0,-1,0})
+    end
+    -- hQuad's default vertex order looks down in this coordinate system.
+    for i=first,#opaque,3 do
+      local a,b,c=opaque[i],opaque[i+1],opaque[i+2]
+      local ux,uy,uz=b[1]-a[1],b[2]-a[2],b[3]-a[3]
+      local vx,vy,vz=c[1]-a[1],c[2]-a[2],c[3]-a[3]
+      local dot=(uy*vz-uz*vy)*a[6]+(uz*vx-ux*vz)*a[7]+(ux*vy-uy*vx)*a[8]
+      if dot<0 then opaque[i+1],opaque[i+2]=opaque[i+2],opaque[i+1] end
+    end
+    if p.axis=="ns" then
+      -- The own OVER is a top-down projected rail strip. Stand the
+      -- matching horizontal donor upright along the map column.
+      for i=first,#opaque do
+        local v=opaque[i]
+        opaque[i]={x+1-(v[3]-z),v[2],z+(v[1]-x),v[4],v[5],
+          -v[8],v[7],v[6]}
+      end
+    end
+    if p.turnMask then
+      grid.emitNativeSaffronThin({mid=p.turnDonor,nativeSaffronThin={
+        axis="ns",mask=p.turnMask,donor=p.turnDonor}},x,z,gy)
     end
   end
   grid.emitNativeMetalEW=function(cell,x,z,gy,raisedOnly)
@@ -7854,6 +8044,20 @@ local native={cells={
     end
   end
 
+  -- Admit only the verified Saffron blue pavement rail cells. Keep the
+  -- original source cell and collision/elevation; replace its projected
+  -- rail paint with the exact clean native UNDER ground donor.
+  grid.nativeSaffronThin=nativeSaffronThin(input,atlas,at)
+  if grid.nativeSaffronThin then
+    for _,p in ipairs(grid.nativeSaffronThin)do
+      local c=p.cell
+      c.nativeSaffronThin=p
+      c.groundMid=p.ground
+      c.propShape="ground"
+      c.suppressDecal=true
+    end
+  end
+
   -- r7m M9: fence links (fences and sign boards in the run) and the map's
   -- east-west side-view fence tile, used for north-south runs.
   local function isFenceCell(c)
@@ -9538,6 +9742,19 @@ local native={cells={
   end
 
   -- ---------------------------------------------------------------
+  -- Approved small-round-shrub adapter. Static geometry, native map/art guards;
+  -- existing Cards/Voxel tree options and legacy fallback remain unchanged.
+  grid.compiledShrubs=nil
+  if not indoor and not cave then
+    local module=deps.CompiledShrub or M.CompiledShrub
+    if not module and type(deps.require)=='function' then
+      local ok,value=pcall(deps.require,'mesh/FrlgCompiledShrub');if ok then module=value end
+    end
+    if type(module)=='table' and type(module.bind)=='function' then grid.compiledShrubs=module.bind(input) end
+  end
+  grid.isCompiledShrub=function(c)
+    return c and grid.compiledShrubs and grid.compiledShrubs.accept(c)
+  end
   -- Verified native round shrub, separate from guessed leafy prop blobs.
   -- Fixed crossed art planes: no view/head-dependent geometry or shader state.
   grid.nativeShrub5=false
@@ -11570,7 +11787,7 @@ local native={cells={
         local uv = underRect(cell.mid)
         local comp = compOf(cell)
         local isBuildingCell = comp and comp.kind == "building"
-        local isFence = isFenceCell(cell)
+        local isFence = not grid.isCompiledShrub(cell) and isFenceCell(cell)
         local isTreeUnit = cell.unit ~= nil
         local isBlob = comp and comp.kind == "prop" and cell.propShape == "tree" and not cell.isTreeArt
 
@@ -11580,12 +11797,12 @@ local native={cells={
         -- interior walls / furniture boxes or cave rock (their tops cover
         -- it); plants stand on the floor tile; a walkable cell whose tile
         -- became a furniture front shows the room's floor tile.
-        local farBlob = isBlob and farBorderCell(x, y)
+        local farBlob = isBlob and not grid.isCompiledShrub(cell) and farBorderCell(x, y)
         -- (r11 review M12: far blob plates keep their ground quad)
         local hidden = (indoor and (cell.role == "wall" or cell.role == "furniture" or cell.stairAssembly))
           or (cave and comp ~= nil)
-          or (comp ~= nil and comp.kind == "block") -- r11: under a block's top
-          or cell.rock == true -- r11 (M2): under the rock's top (pass 3r)
+          or (comp ~= nil and comp.kind == "block" and not cell.nativeSaffronThin) -- verified rails own ground, not a block top
+          or (cell.rock == true and not cell.nativeSaffronThin and not grid.isCompiledShrub(cell)) -- native Saffron rail draws ground here
           or cell.nativeStructure and (cell.nativeStructure.kind=="bridge" or cell.nativeStructure.ew)
           or grid.nativeMetalCorners[cell]
           or cell.nativeSafariWestForest or cell.nativeSafariNorthForest or isBuildingCell -- native forest background is emitted once by its source-card assembly
@@ -11735,6 +11952,8 @@ local native={cells={
         elseif guv and not hidden and cell.hg then
           -- r13c: a banded hill cell (the hill bands pass)
           grid.drawGrid(cell, guv)
+        elseif guv and not hidden and grid.isCompiledShrub(cell) then
+          grid.compiledShrubs.ground(cell,uv,opaque,hQuad)
         elseif guv and not hidden and cell.rampH then
           -- r12 (ledge hills): the ground at its four corner heights (r13c:
           -- split at a banded neighbour's welded points)
@@ -11743,7 +11962,16 @@ local native={cells={
           -- (r13c: a flat cell beside a band: split at the welded points)
           grid.flatQuad(cell, x0, z0, x1, z1, groundY, guv)
         elseif guv and not hidden then
-          if cell.caveShore then grid.drawCaveShore(cell)
+          if cell.nativeSaffronThin and cell.nativeSaffronThin.splitGrass then
+            -- NW corner 792 has grass in the top four native rows and a
+            -- pavement return below. Its clean donor is otherwise MID744.
+            local grass=underRect(737)
+            hQuad(opaque,x0,z0,x1,z0+.25,groundY,
+              subRect(grass,0,0,1,1/16))
+            hQuad(opaque,x0,z0+.25,x1,z1,groundY,
+              subRect(guv,0,.25,1,1))
+          elseif cell.caveShore then grid.drawCaveShore(cell)
+          elseif grid.isCompiledShrub(cell) then grid.compiledShrubs.ground(cell,uv,opaque,hQuad)
           elseif grid.isNativeShrub(cell) then grid.shrub5Ground(cell,uv)
           elseif nativeLadder and (cell.mid==645 or cell.mid==687) then
             -- A down ladder remains a floor opening, with a visible recessed well.
@@ -12840,6 +13068,8 @@ local native={cells={
         if grid.emitNativeMetalCorner(cell,x0,z0,groundY)then
           -- Source-owned corner silver and preserved native mixed ground.
           fenceCells=fenceCells+1
+        elseif cell.nativeSaffronThin then
+          grid.emitNativeSaffronThin(cell,x0,z0,groundY)
         elseif cell.nativeAuditedRail then
           grid.emitNativeAuditedRail(cell,x0,z0,groundY)
         elseif cell.nativeStructure and cell.nativeStructure.kind=="bridge" then
@@ -12984,7 +13214,7 @@ local native={cells={
         if cell.blobTree and not cell.bush and not farBlob then
           for _, m in pairs(underSidesOf(cell)) do if m == "out" then nOpenOut = nOpenOut + 1 end end
         end
-        if not grid.indigoRailCells[cell] and not cell.nativeSafariWestOverlay and not cell.nativeSafariWestForest and not cell.nativeSafariNorthForest and not grid.frNativeUnit(cell) and (isTreeUnit or (cell.blobTree and not cell.bush and not farBlob and nOpenOut < 3)) and uv then
+        if not grid.isCompiledShrub(cell) and not grid.indigoRailCells[cell] and not cell.nativeSafariWestOverlay and not cell.nativeSafariWestForest and not cell.nativeSafariNorthForest and not grid.frNativeUnit(cell) and (isTreeUnit or (cell.blobTree and not cell.bush and not farBlob and nOpenOut < 3)) and uv then
           local base = darkSw or shadeSw or (sw and subRect(sw, 0, C.FOREST_BASE_V0, 1, 1)) or subRectV(uv, C.FOREST_BASE_V0, 1)
           if f3 and isForest3Mid(cell.mid) then base = f3.dark or f3.shade or base end
           if IN.flora then base = IN.flora:underUv(f3 ~= nil and isForest3Mid(cell.mid)) or base end -- W7
@@ -13055,7 +13285,9 @@ local native={cells={
 
         -- Non-tree solid blobs (rocks, cliffs, bushes): small per-cell crown
         -- with the cell's own tile (legacy shape; W3 density rule).
-        if farBlob and uv then
+        if grid.isCompiledShrub(cell) and uv then
+          grid.compiledShrubs.crown(cell,uv,opaque)
+        elseif farBlob and uv then
           -- r8 cost: a blob cell deep in a border ring (>= BORDER_FAR_CELLS
           -- from where the player can be) is a flat canopy top at the dense
           -- crown's height -- the near crowns hide its edge.
@@ -14242,7 +14474,7 @@ local native={cells={
   local blockRunOf = {}
   grid.blockRunOf = blockRunOf -- (flat-top rollout: grid.flatTopRoof reads it)
   do
-    local function isBlockCell(c, bc) return not bc.nativeBikeShop and not bc.nativeRail and not bc.nativeDecorativeRest and c and ((c.blocksForBlob and components[c.compId] == bc) or c.nativeRoute2GateOwner==bc) end
+    local function isBlockCell(c, bc) return not bc.nativeBikeShop and not bc.nativeRail and not bc.nativeDecorativeRest and c and not c.nativeSaffronThin and ((c.blocksForBlob and components[c.compId] == bc) or c.nativeRoute2GateOwner==bc) end
     for _, bc in ipairs(blocks) do
       local runs, maxRows = {}, 0
       for x = bc.minX, bc.maxX do
@@ -15257,7 +15489,8 @@ local native={cells={
       if y % 4 == 0 then Y() end
       for x = 0, W - 1 do
         local c = grid[y][x]
-        if isRock(c) then
+        if (c.nativeSaffronThin or grid.isCompiledShrub(c)) and isRock(c) then rockTop(c) end
+        if isRock(c) and not c.nativeSaffronThin and not grid.isCompiledShrub(c) then
           if c.nativeRoute12Exterior then c.route12Marks={#opaque,#cutoutUnder,#cutoutOver,#cutoutKeyed} end
           local mountainStart=grid.recordBondMountainCoast and ((x==0 and y>=14)or(y==19 and x<=24)) and #opaque
           local bondStart=grid.nativeBondWestCoast and x==0 and y==13 and #opaque
@@ -26086,7 +26319,7 @@ end
 
 
   do
-    local function isBlockCell(c, bc) return not bc.nativeRail and not bc.nativeDecorativeRest and c and ((c.blocksForBlob and components[c.compId] == bc) or c.nativeRoute2GateOwner==bc) end
+    local function isBlockCell(c, bc) return not bc.nativeRail and not bc.nativeDecorativeRest and c and not c.nativeSaffronThin and ((c.blocksForBlob and components[c.compId] == bc) or c.nativeRoute2GateOwner==bc) end
     local function crop(r) return subRect(r, 0.3, 0, 0.7, 1) end
     -- a cell's art: list, rect pairs, back to front
     local function layers(c)
@@ -26866,6 +27099,7 @@ end
       seamUnits = seamUnits, seamNoCrown = seamNoCrown, -- r9 (review 5)
       treeUnitMaxTris = treeUnitMaxTris, edgeUnits = edgeUnits, trunks = trunks, -- r9 Part B
       grassCells = keyedGrass, fenceCells = fenceCells, signs = signCount,
+      compiledShrubs = grid.compiledShrubs and grid.compiledShrubs.stats or nil,
       nativeFoliage = IN.nativeFoliage and IN.nativeFoliage.stats or nil,
       flora = IN.flora and IN.flora.stats or nil, -- W7
       -- r8

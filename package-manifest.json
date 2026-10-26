@@ -1,5 +1,5 @@
 {
-  "version": "0.1.0-beta.7",
+  "version": "0.1.0-beta.8",
   "files": [
     {
       "path": ".gitignore",
@@ -338,8 +338,8 @@
     },
     {
       "path": "FRLG_VOXEL/lib/compat/EngineSeams.lua",
-      "bytes": 14082,
-      "sha256": "646480d44e9be25feb11b6214d614bb34cb26ca64ec3bdf234bf8909ed17e99e"
+      "bytes": 14724,
+      "sha256": "576485c90ef1c6a8645b97dbff01fc334e38895fb473d95d145f75824de98963"
     },
     {
       "path": "FRLG_VOXEL/lib/compat/LegacyBridge.lua",
@@ -513,8 +513,8 @@
     },
     {
       "path": "FRLG_VOXEL/lib/compat/legacyBridge/lib/compat/Gen3ChooseYouCompat.lua",
-      "bytes": 42102,
-      "sha256": "458ecd850c7da93d9d716f94e76939b57ef012aa02ffebfee9028abdd996f2da"
+      "bytes": 42630,
+      "sha256": "16b9a998814bd2d53bb1563432a4de2c5223ca5138b88951099dce18f91a0d9e"
     },
     {
       "path": "FRLG_VOXEL/lib/compat/legacyBridge/lib/compat/Gen3ContentsCompat.lua",
@@ -568,8 +568,13 @@
     },
     {
       "path": "FRLG_VOXEL/lib/compat/legacyBridge/lib/compat/Gen3PartyActionFX.lua",
-      "bytes": 21165,
-      "sha256": "1a4c6f9d4349fe9a2e3b5272742d5befd2f4bd7861467615cb223b7b86ab99bc"
+      "bytes": 21414,
+      "sha256": "d545b232d2280156edc2f5e9384e1807169931db8af2cb3c72c01dd81d2595fe"
+    },
+    {
+      "path": "FRLG_VOXEL/lib/compat/legacyBridge/lib/compat/Gen3PartyBeltDisplay.lua",
+      "bytes": 1207,
+      "sha256": "151feca95cd2ed2fd27bd835f4220bcca76596d47dc7e116c608c53c869c17c5"
     },
     {
       "path": "FRLG_VOXEL/lib/compat/legacyBridge/lib/compat/Gen3PartySubjectCompat.lua",
@@ -598,8 +603,8 @@
     },
     {
       "path": "FRLG_VOXEL/lib/compat/legacyBridge/lib/compat/Gen3TabletCompat.lua",
-      "bytes": 18179,
-      "sha256": "c835efaa2db5696e7399d6ca7601d4bc1885082720f4e7b42c6252a617cd7173"
+      "bytes": 26778,
+      "sha256": "34abbc5dd3c9dcea0e6b5821c67f9f39d7b157aa8d2b6f720c196ae16b652333"
     },
     {
       "path": "FRLG_VOXEL/lib/compat/legacyBridge/lib/compat/Gen3TabletPointer.lua",
@@ -608,8 +613,8 @@
     },
     {
       "path": "FRLG_VOXEL/lib/compat/legacyBridge/lib/compat/Gen3VrComfort.lua",
-      "bytes": 2785,
-      "sha256": "d86ed8d5c04d8e3cd38f6566653b36b835f8982ee53d8151e2c1578e23ea8c03"
+      "bytes": 2829,
+      "sha256": "84f946d6e95c07f9a7dfe47c588b7a2a17f0b13a88f1563fc8bd84cc9001a82a"
     },
     {
       "path": "FRLG_VOXEL/lib/compat/legacyBridge/lib/compat/HdSpritesCompat.lua",
@@ -778,8 +783,8 @@
     },
     {
       "path": "FRLG_VOXEL/lib/compat/legacyBridge/main.lua",
-      "bytes": 41975,
-      "sha256": "93727969bba1e26887b6fe3a1aefb7785391b1ced984db048c359e1eb284d68c"
+      "bytes": 42129,
+      "sha256": "0e78723ce2717a719a6311ad815102568b9636f7281109a4a48b2c4cd595ce4a"
     },
     {
       "path": "FRLG_VOXEL/lib/data/Actors.lua",
@@ -882,6 +887,16 @@
       "sha256": "c3808872c4bc77dac157dedc1dc0a55366b6f8ed2883bd3640e912ffd854b051"
     },
     {
+      "path": "FRLG_VOXEL/lib/mesh/FrlgCompiledShrub.lua",
+      "bytes": 4326,
+      "sha256": "e2cc959d79c6d22aedaec09aeee8379b758e575318a999ccfc5256c3d7d6511a"
+    },
+    {
+      "path": "FRLG_VOXEL/lib/mesh/FrlgCompiledShrubData.lua",
+      "bytes": 118886,
+      "sha256": "ea24fb03a16280910540dc1130b9b589fe4456e17d3858f3ebb8c70f76b544b1"
+    },
+    {
       "path": "FRLG_VOXEL/lib/mesh/FrlgCompiledTree.lua",
       "bytes": 3092,
       "sha256": "fd2b24429cb7d5dd4b2b766df2e5bbe627fee1ea01f4e957474932821d849ef6"
@@ -918,8 +933,8 @@
     },
     {
       "path": "FRLG_VOXEL/lib/mesh/FrlgMesher.lua",
-      "bytes": 1951613,
-      "sha256": "5016319c59b764b9deb4268296a50dc0e30c67c870d5aa56544270e091aebbd5"
+      "bytes": 1962923,
+      "sha256": "5271dfdd208165987e87785efda2587d62683de3b47bdd435e48b2e5752c1302"
     },
     {
       "path": "FRLG_VOXEL/lib/mesh/FrlgNativeFoliage.lua",
@@ -1228,8 +1243,8 @@
     },
     {
       "path": "FRLG_VOXEL/lib/perf/FrPrecacheLegacy.lua",
-      "bytes": 4765,
-      "sha256": "8e231418f432b8241a7015b83e6ab8bb5049572be6dc75e74e38b28ca5bfdf2a"
+      "bytes": 6675,
+      "sha256": "e901bbe070fbffed5a685dafd6a535c18e0e8bc2abaeab58f1b3e578cf0aac02"
     },
     {
       "path": "FRLG_VOXEL/lib/perf/FrPrecacheReuse.lua",
@@ -1328,13 +1343,13 @@
     },
     {
       "path": "FRLG_VOXEL/lib/quest/FlatRate.lua",
-      "bytes": 11659,
-      "sha256": "d6345d27b71f6b1d1a4d42519708d72d04f8aff9a5a739d8809372a8d202dbdf"
+      "bytes": 16201,
+      "sha256": "c96d255dec8d515ec149359f822dbb68e71e495a7d35ad1133c6d2f27612e58c"
     },
     {
       "path": "FRLG_VOXEL/lib/quest/FramePacer.lua",
-      "bytes": 85191,
-      "sha256": "84b3fe4dea46e6b34ea2a27a1ce7f964bb0c627da03664cdf268b735f5d48e42"
+      "bytes": 85947,
+      "sha256": "0ce585eb5ba49682155d8878463ecb7413a50f5fce6d77bb4edefe0577344b24"
     },
     {
       "path": "FRLG_VOXEL/lib/quest/FreeMove.lua",
@@ -1343,8 +1358,8 @@
     },
     {
       "path": "FRLG_VOXEL/lib/quest/GcSlack.lua",
-      "bytes": 13018,
-      "sha256": "29de43bc3dae278bd85bea3717f2d7338f28cf17cab966182b22eade99ba467f"
+      "bytes": 13790,
+      "sha256": "47e482a0d97fdb95a89dc381f87a9b7e94c4d1819a1d9f1545fa5537d0941950"
     },
     {
       "path": "FRLG_VOXEL/lib/quest/HostApi.lua",
@@ -1608,13 +1623,18 @@
     },
     {
       "path": "FRLG_VOXEL/main.lua",
-      "bytes": 132621,
-      "sha256": "92c1d6f1f45c2b123c7e0dc2a40d4396c9026d033ecc473ea0f5860b0fffa326"
+      "bytes": 130740,
+      "sha256": "6aa8b610df8ec08eca0c468219691ed9a6a874d9f99404f9698fece3a51b3ea7"
     },
     {
       "path": "FRLG_VOXEL/manifest.json",
       "bytes": 664,
-      "sha256": "78de5c3f79f54708e5aa00b98a8a89ce3e0f74f3f02c5eae48c2c8c48cd33735"
+      "sha256": "bcb4a161089f761a37d31294f625d454ab59e002821c612c2e9bfa1da0c02083"
+    },
+    {
+      "path": "FRLG_VOXEL/tools/TesterCatchActivation.lua",
+      "bytes": 3442,
+      "sha256": "859e7ca0b9fb62ca2565ccebc4da675fa4e607e7eae230ef2ab62ed5f321792a"
     },
     {
       "path": "FRLG_VOXEL/tools/update_consumer_lookups.py",
@@ -1628,8 +1648,8 @@
     },
     {
       "path": "README.md",
-      "bytes": 5046,
-      "sha256": "e6ac86ca06fd2e926cc2c37ab6bdeba38885ea881e22e2097771a8e5bbdebac2"
+      "bytes": 5064,
+      "sha256": "1804f8e6930fbb1e3068e9ffc16188ed627a98e67f10d932ee03b2c2b366b5e1"
     },
     {
       "path": "THIRD_PARTY_NOTICES.md",
@@ -1638,8 +1658,8 @@
     },
     {
       "path": "docs/CHANGELOG.md",
-      "bytes": 8619,
-      "sha256": "3fbbf7a1adcaebf6e4752cbfd7293dd5087d722c70d2dd11866f16231c8f1185"
+      "bytes": 10260,
+      "sha256": "50b84f7d0d86a286044b91bfebaf4b7e42c2007bb110643e59f608dd6c936c55"
     },
     {
       "path": "docs/CONSUMER_UPDATES.md",
@@ -1648,8 +1668,8 @@
     },
     {
       "path": "docs/TECHNICAL_NOTES.md",
-      "bytes": 7168,
-      "sha256": "9ea5a0f8504c5f94887bc9d1fa2bb344bbc9b76458fa4c4887433259f340ab4c"
+      "bytes": 7884,
+      "sha256": "9b7e2243d1cf186113d0d8615bd9d798df29ff7133a49e949100b038f081fd02"
     },
     {
       "path": "docs/screenshots/buildings.png",

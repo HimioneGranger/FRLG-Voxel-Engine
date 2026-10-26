@@ -1542,10 +1542,17 @@ function FramePacer:_logWindow()
       s.cycled and " (a gc cycle ended in it)" or "", table.concat(sp, " ")))
   -- Lab 49: FLAT DRAW RATE counts for the same window (Display.present calls)
   if self.flatRate then
-    local okF, d, sk, fb, ge, rate = pcall(self.flatRate)
+    local okF, d, sk, fb, ge, rate, reasons, reasonTotal, wear, navContract, navSource = pcall(self.flatRate)
     if okF then
       self.log(("pacer flat-rate n=%d rate=1/%s drawn=%d skipped=%d fallback=%d gateErrors=%d; Display.present calls this window")
         :format(n, tostring(rate), tonumber(d) or 0, tonumber(sk) or 0, tonumber(fb) or 0, tonumber(ge) or 0))
+      if wear then self.log('pacer watch-admission '..tostring(wear)..'; one outcome per wearStep call') end
+      if navContract then self.log('pacer watch-contract '..tostring(navContract)..'; first rejected guard or admitted per contractOnly call') end
+      if navSource then self.log('pacer watch-source '..tostring(navSource)..'; first rejected guard or needed/idle per final source query') end
+      if reasons then
+        self.log(("pacer flat-reasons total=%d expected=%d matches=%s %s; first rejection or final outcome, same Display.present window")
+          :format(tonumber(reasonTotal) or -1,(tonumber(d) or 0)+(tonumber(sk) or 0),tostring(reasonTotal==d+sk),tostring(reasons)))
+      end
     else
       self.log("pacer flat-rate unavailable: " .. tostring(d))
     end

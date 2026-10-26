@@ -30,14 +30,14 @@ end
 function M.install(V,deps)
  if M.undo and M.owner==V then return true end
  if M.undo then M.uninstall()end
- deps=deps or {};local enabled=deps.enabled or function()return true end
+ deps=deps or {};local enabled=deps.enabled or function()return true end;local visible=deps.visualEnabled or enabled
  local Layout=V.require('UtilityBeltLayout');local Loft=V.require('ThrowLoft')
  if type(Layout)~='table'or type(Layout.root)~='function'or type(Loft)~='table'or type(Loft.velocity)~='function'then return false,'unsupported-wearable-api'end
  M.owner=V
  local root,velocity=Layout.root,Loft.velocity
  local cache=setmetatable({},{__mode='k'})
  local rootWrapper=function(fallback)
-  if not enabled()or option('belt_locked',true)==false or (Layout.mounted and Layout.mounted())then return root(fallback)end
+  if not visible()or option('belt_locked',true)==false or (Layout.mounted and Layout.mounted())then return root(fallback)end
   if type(fallback)~='table'then return root(fallback)end
   local locked=cache[fallback]
   if not locked then locked=M.lockRoot(fallback);cache[fallback]=locked end

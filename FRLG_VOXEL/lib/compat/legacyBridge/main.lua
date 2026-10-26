@@ -583,12 +583,12 @@ mod.exports.compat = {
   -- opening/overworld send-out (Gen3ChooseYouCompat) and the belt fixes
   -- (Gen3BeltCompat) into VRITK's own module tables. enabled/onBegin are the
   -- same two closures VRITK hands Gen2BattleCompat.install on Crystal.
-  install = function(vkV, enabled, onBegin)
+  install = function(vkV, enabled, onBegin, visualEnabled)
     local okC, whyC = Mods.Gen3ChooseYouCompat.install(vkV, enabled, onBegin, { log = log })
     -- enabled also gates the belt's A claim (holding()), so a belt VRITK
     -- disables or stops running cannot keep A from the game (review defect 2)
     local okB, whyB = Mods.Gen3BeltCompat.install(vkV, { log = log, enabled = enabled })
-    V.require('compat/Gen3VrComfort').install(vkV,{enabled=enabled})
+    V.require('compat/Gen3VrComfort').install(vkV,{enabled=enabled,visualEnabled=visualEnabled})
     Mods.Gen3JuggleSpin.install(vkV,enabled)
     local okD, whyD = Mods.Gen3DexScannerCompat.installCamera(vkV)
     -- Lab 57 (SCANNER57 review): watchEdge= shows a silent fallback to the old ray in the log
@@ -599,6 +599,7 @@ mod.exports.compat = {
     return okC == true and okB == true, whyC or whyB
   end,
   chooseYou = Mods.Gen3ChooseYouCompat,
+  partyBeltDisplayAllowed = function(game) return V.require('compat/Gen3PartyBeltDisplay').allowed(game) end,
   belt = Mods.Gen3BeltCompat,
   juggleSpin = Mods.Gen3JuggleSpin,
   dexScanner = Mods.Gen3DexScannerCompat,

@@ -1,7 +1,7 @@
 {
   "id": "FRLG_VOXEL",
   "name": "FRLG Voxel Engine \u2014 Beta",
-  "version": "0.1.0-beta.7",
+  "version": "0.1.0-beta.8",
   "api": 2,
   "entry": "main.lua",
   "profile": "content",

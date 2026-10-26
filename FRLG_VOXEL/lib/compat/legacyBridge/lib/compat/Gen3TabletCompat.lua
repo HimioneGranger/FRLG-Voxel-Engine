@@ -11,6 +11,32 @@ local M = {}
 local state = { active=false, presented=false, sticky={} }
 -- battle-ui (2026-10-01): the Gear surface bridge the component was installed with, for available()
 local bound = { bridge=nil }
+local nativeSourceFresh
+-- FlatRate brackets only compose replay. Nil is the ordinary/native path;
+-- the setter is atomic and returns the previous mode for protected cleanup.
+function M.navigationSourceMode(fresh)
+  local previous=nativeSourceFresh;nativeSourceFresh=fresh;return previous
+end
+function M.navigationSourceReset()nativeSourceFresh=nil end
+local function guardNavigationSource(bridge)
+  local original=bridge and bridge._redrawBorrowedSurface
+  if type(original)~='function' then return nil end
+  local prior=rawget(bridge,'_redrawBorrowedSurface')
+  local wrapped=function(self,...)
+    -- A replay can discover new clock/overlay content arbitrarily late.
+    -- Leave the stable map and ALL pending/retry flags untouched until the
+    -- next native frame, instead of copying an older native position mirror.
+    if nativeSourceFresh==false then return end
+    return original(self,...)
+  end
+  rawset(bridge,'_redrawBorrowedSurface',wrapped)
+  local restore=function()
+    if rawget(bridge,'_redrawBorrowedSurface')==wrapped then
+      rawset(bridge,'_redrawBorrowedSurface',prior)
+    end
+  end
+  return restore,wrapped
+end
 -- Gen3 dex scanner (2026-10-02): other Gen3 modules that also need the Gear
 -- surface bridge this component adopts (Gen3DexScannerCompat.installBridge).
 M.extensions = {}
@@ -18,15 +44,116 @@ function M.extend(fn)
   M.extensions[#M.extensions+1]=fn
   if bound.bridge then pcall(fn,nil,nil,bound.bridge) end
 end
-local function clear() state.active=false;state.presented=false;state.candidate=false;state.renderFailed=false end
+local function clear() state.active=false;state.presented=false;state.candidate=false;state.renderFailed=false;state.watchReady=false end
 local function hasFrame(scene)
   local surface=scene and scene.surface
   if not(surface and type(surface.frame)=='function')then return false end
   local ok,frame=pcall(surface.frame)
   return ok and frame~=nil
 end
+local function watchReady(scene,bridge)
+  if not(scene and scene.mode=='watch')then return false end
+  local ok,available=pcall(bridgeAvailable,bridge)
+  return ok and available==true and hasFrame(scene)
+end
 function M.active() return state.active end
 function M.presented() return state.active and state.presented end
+local function navigationBinding(bindings,name)
+  local binding=bindings and bindings[name]
+  if not(binding and type(binding.get)=='function')then return nil end
+  local ok,value=pcall(binding.get,binding);if ok then return value end
+end
+-- Optional FRLG flat-source contract. Pose and compose still run every XR
+-- frame; an idle watch map only needs a fresh native FieldView while its
+-- existing bridge has new content pending. Unknown state returns
+-- nil, preserving FlatRate's original full-rate visibility safety gate.
+-- Fixed diagnostic buckets; only reporting formats strings or allocates tables.
+M.NAVIGATION_REASON_KEYS = {'stateActive','stateCandidate','statePresented','watchNotReady','guardMissing','guardOwnership','bridgeMissing','bridgeUnavailable','deviceMode','presentation','widget','renderError','retry','touch','pressFollow','bindingActive','bindingScreen','bindingPage','runtimeType','dirtyType','overlayHidden','homeType','homeEditing','homeLibrary','homeHelp','motion','motionPending','lastScreen','startup','timerMissing','timerInvalid','hudShape','hudCall','overlayMissing','overlayCall','admitted','needed','idle'}
+local contractCounts,sourceCounts={},{}
+for i=1,#M.NAVIGATION_REASON_KEYS do local k=M.NAVIGATION_REASON_KEYS[i];contractCounts[k]=0;sourceCounts[k]=0 end
+local function navigationResult(value,key,contractOnly)
+  local counts=contractOnly==true and contractCounts or sourceCounts
+  counts[key]=counts[key]+1
+  return value
+end
+function M.takeNavigationCounts()
+  local function take(counts)
+    local parts,total={},0
+    for i=1,#M.NAVIGATION_REASON_KEYS do
+      local k=M.NAVIGATION_REASON_KEYS[i];local n=counts[k];total=total+n;parts[i]=k..'='..n;counts[k]=0
+    end
+    return 'total='..total..' '..table.concat(parts,' ')
+  end
+  return take(contractCounts),take(sourceCounts)
+end
+function M.navigationMapNeeded(contractOnly)
+  local b=bound.bridge
+  if state.active then return navigationResult(nil,'stateActive',contractOnly) end
+  if state.candidate then return navigationResult(nil,'stateCandidate',contractOnly) end
+  if state.presented then return navigationResult(nil,'statePresented',contractOnly) end
+  if state.watchReady~=true then return navigationResult(nil,'watchNotReady',contractOnly) end
+  if not bound.sourceGuard then return navigationResult(nil,'guardMissing',contractOnly) end
+  if rawget(b,'_redrawBorrowedSurface')~=bound.sourceGuardMethod then return navigationResult(nil,'guardOwnership',contractOnly) end
+  if not b then return navigationResult(nil,'bridgeMissing',contractOnly) end
+  if b.available~=true then return navigationResult(nil,'bridgeUnavailable',contractOnly) end
+  if b.deviceMode~='watch' then return navigationResult(nil,'deviceMode',contractOnly) end
+  if not b.presentation then return navigationResult(nil,'presentation',contractOnly) end
+  if b.watchWidgetId~='map_widget' then return navigationResult(nil,'widget',contractOnly) end
+  if b.renderError then return navigationResult(nil,'renderError',contractOnly) end
+  if b.retryPending then return navigationResult(nil,'retry',contractOnly) end
+  if b.pendingTouch then return navigationResult(nil,'touch',contractOnly) end
+  if (tonumber(b.pressFollowLeft) or 0)>0 then return navigationResult(nil,'pressFollow',contractOnly) end
+  local bindings=b.bindings
+  if navigationBinding(bindings,'active')~=true then return navigationResult(nil,'bindingActive',contractOnly) end
+  if navigationBinding(bindings,'screenMode')~='active' then return navigationResult(nil,'bindingScreen',contractOnly) end
+  if navigationBinding(bindings,'page')~='HOME' then return navigationResult(nil,'bindingPage',contractOnly) end
+  local runtime=navigationBinding(bindings,'displayRuntime');local dirty=navigationBinding(bindings,'dirty')
+  if type(runtime)~='table' then return navigationResult(nil,'runtimeType',contractOnly) end
+  if type(dirty)~='boolean' then return navigationResult(nil,'dirtyType',contractOnly) end
+  if runtime.overlayHidden then return navigationResult(nil,'overlayHidden',contractOnly) end
+  local home=runtime.home
+  if type(home)~='table' then return navigationResult(nil,'homeType',contractOnly) end
+  if home.editing then return navigationResult(nil,'homeEditing',contractOnly) end
+  if home.library then return navigationResult(nil,'homeLibrary',contractOnly) end
+  if home.help then return navigationResult(nil,'homeHelp',contractOnly) end
+  local motion=runtime.motion
+  if type(motion)=='table' and motion.started~=nil then return navigationResult(nil,'motion',contractOnly) end
+  if b.motionRefreshPending then return navigationResult(nil,'motionPending',contractOnly) end
+  if b.lastScreenMode~='active' then return navigationResult(nil,'lastScreen',contractOnly) end
+  if b.watchStartupInitialized~=true then return navigationResult(nil,'startup',contractOnly) end
+  if not(love and love.timer and type(love.timer.getTime)=='function')then return navigationResult(nil,'timerMissing',contractOnly) end
+  local ok,now=pcall(love.timer.getTime)
+  local deadline=tonumber(b.nextRefreshAt)
+  if not ok or type(now)~='number' or now~=now or not deadline or deadline~=deadline
+      or math.abs(now)==math.huge or math.abs(deadline)==math.huge then return navigationResult(nil,'timerInvalid',contractOnly) end
+  if contractOnly==true then return navigationResult(false,'admitted',contractOnly) end
+  local pending=dirty or b.refreshPending==true or b.overlayPending==true or b.pumpContentAsk==true
+  -- The bridge can discover a badge/overlay change inside compose itself.
+  -- Anticipate those existing callbacks so even that first copy sees this
+  -- frame's native source. The visibility probe above never calls providers.
+  if b.watchTime and now>=(tonumber(b.watchTimeNextAt) or 0)then pending=true end
+  if b.ADOPT_CAPTURE_HUD~=false and not b.captureHud and not b.captureHudFailed
+      and now>=(tonumber(b.captureHudNextAt) or 0)then pending=true end
+  local hud=b.captureHud
+  if hud then
+    local ask=type(hud.shouldDrawWatch)=='function' and hud.shouldDrawWatch or hud.shouldDraw
+    local catching=hud.catching
+    if type(ask)~='function' or not(catching and type(catching.game)=='function'
+        and type(catching.overworld)=='function')then return navigationResult(nil,'hudShape',contractOnly) end
+    local called,wants=pcall(ask,hud,catching:game(),catching:overworld())
+    if not called then return navigationResult(nil,'hudCall',contractOnly) end
+    if wants then pending=true end
+  end
+  if type(b._overlayWants)~='function' then return navigationResult(nil,'overlayMissing',contractOnly) end
+  local called,wants=pcall(b._overlayWants,b)
+  if not called then return navigationResult(nil,'overlayCall',contractOnly) end
+  if wants then pending=true end
+  -- Deadline checks schedule native work. The replay guard provides safety
+  -- if an arbitrarily slow compose crosses a later deadline: that first copy
+  -- waits for the next native frame, with its flags and displayed map intact.
+  local needed=pending and now>=deadline or false
+  return navigationResult(needed,needed and 'needed' or 'idle',contractOnly)
+end
 -- battle-ui (2026-10-01): true while the Kanto Gear tablet can show the game (its surface bridge is adopted),
 -- held or not. FRLG_VOXEL's 3D battle presenter then leaves the battle UI to the tablet (no floating command
 -- card): the tablet's battle page shows the engine's messages and menus. Plain read; never raises.
@@ -230,7 +357,10 @@ end
 function M.install(component, interaction, bridge, kit)
   clear()
   state.sticky={}
+  if bound.sourceGuard then bound.sourceGuard()end
   bound.bridge=bridge
+  local restoreSource,sourceGuard=guardNavigationSource(bridge)
+  bound.sourceGuard=restoreSource;bound.sourceGuardMethod=sourceGuard
   local skip=type(kit)=='table' and type(kit.beltSwitch)=='table' and M.newSkipOverlay(kit.beltSwitch) or nil
   if skip then bridge:setTabletOverlay(skip) end
   touchStats.hoverFrames, touchStats.presses, touchStats.lastU, touchStats.lastV = 0, 0, nil, nil
@@ -264,6 +394,7 @@ function M.install(component, interaction, bridge, kit)
     if ptr then ptr:endFrame(context and context.dt) end
     local holder=context and context.hands and context.hands.right
     local scene=result and result.interaction
+    state.watchReady=watchReady(scene,bridge)
     state.candidate=scene~=nil and scene.mode=='tablet' and holder~=nil and holder.tracked==true
       and bridgeAvailable(bridge)==true and hasFrame(scene)
     state.active=state.candidate and not state.renderFailed
@@ -297,6 +428,7 @@ function M.install(component, interaction, bridge, kit)
   end
   function component:draw(scene)
     local ok=draw(self,scene)
+    if ok~=true then state.watchReady=false end
     if state.candidate then
       state.renderFailed=ok~=true
       state.active=not state.renderFailed
@@ -309,7 +441,9 @@ function M.install(component, interaction, bridge, kit)
   end
   function component:invalidate(...) clear();if skip then skip:reset() end;if ptr then ptr:reset() end;return invalidate(self,...) end
   function component:dispose(...)
-    clear();if bound.bridge==bridge then bound.bridge=nil end
+    clear();if bound.bridge==bridge then bound.bridge=nil;bound.sourceGuardMethod=nil end
+    if restoreSource then restoreSource();if bound.sourceGuard==restoreSource then bound.sourceGuard=nil end;restoreSource=nil end
+    nativeSourceFresh=nil
     if skip then skip:reset();bridge:setTabletOverlay(nil);skip=nil end
     if unwrapTouch then pcall(unwrapTouch);unwrapTouch=nil end
     if unwrapGen3 then pcall(unwrapGen3);unwrapGen3=nil end

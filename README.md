@@ -6,11 +6,11 @@ A 3D voxel/render engine for FireRed and LeafGreen: reviewed buildings,
 **Engine only:** requires a compatible Gen1Recomp Gen 3 host and your own game
 data. The host, ROMs, saves and optional gameplay mods are not included.
 
-**Beta 7** adds **Trees: Cards / Voxel / Voxel Low Res**, lighter tree rendering,
-VR controls guides, belt/throw controls and physical-item adapters. It retains
-the current buildings, caves, fog and sign work. New interaction features still
-need headset testing. Thanks to [flixtkc](https://github.com/flixtkc) for the
-original trees in [PR #1](https://github.com/HimioneGranger/FRLG-Voxel-Engine/pull/1).
+**Beta 8** adds the approved round shrubs, Saffron railing cleanup,
+watch-refresh and memory-cleanup improvements, and send-out/roamer fixes.
+It includes **Trees: Cards / Voxel / Voxel Low Res** and the beta 7 controls and
+item adapters. Thanks to [flixtkc](https://github.com/flixtkc) for the original
+trees in [PR #1](https://github.com/HimioneGranger/FRLG-Voxel-Engine/pull/1).
 See the [change notes](docs/CHANGELOG.md) for details and limits.
 
 ## What has been overhauled
@@ -51,7 +51,7 @@ establish headset performance.
 Keep your saves. Remove beta 1's old `VRITK_FRLG_HOST` folder if present.
 Changed geometry may prepare once; compatible completed caches are reused.
 
-Reference host baseline: FireRed lab 3257, engine 0.3.33/mod API 2/LÖVE, with OpenXR on
+Reference engine baseline: FireRed lab 3268 plus reviewed Saffron railing correction, engine 0.3.33/mod API 2/LÖVE, with OpenXR on
 Quest. Preparation and controls need matching host services. This ZIP does not
 update the host, install the custom title/Oak mod or supply a Steam Frame launcher.
 The separate Windows PCVR host trial is not bundled in this engine ZIP.

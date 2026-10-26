@@ -1140,26 +1140,26 @@ local FLAT_OVERLAYS = {
 }
 local function flatEligible()
   -- Android, the XR session started, the 3D view on and not failed
-  if not (S.android and R and R.xr and R.xr.started == true and S.voxelOn and not S.failed) then return false end
+  if not (S.android and R and R.xr and R.xr.started == true and S.voxelOn and not S.failed) then return false, nil, nil, "xr" end
   -- the last frame composed the field world and the Quest frame showed it in 3D
   -- (world, want3d: no panel/quad view, no battle)
-  if not (S.worldActive == true and S.flatWorld == true) then return false end
+  if not (S.worldActive == true and S.flatWorld == true) then return false, nil, nil, "world" end
   -- Lab 50: the Gear watch/tablet is not on screen (and was not for WEAR_HOLD_S)
-  if S.wearAway ~= true then return false end
+  if S.wearAway ~= true then return false, nil, nil, "wear" end
   local game = currentGame()
-  if not fieldPhase(game) then return false end -- field phase, runtime live, no battle transition
-  if menuOpen() then return false end           -- uiBusy (text, choice, menus, fades, battle), stack, help
-  if activeCall("src.core.game3.battle", "isActive") then return false end
-  if R.battle and R.battle.want == true then return false end
-  if effectsNeedFlat() then return false end
+  if not fieldPhase(game) then return false, nil, nil, "field" end -- field phase, runtime live, no battle transition
+  if menuOpen() then return false, nil, nil, "menu" end           -- uiBusy (text, choice, menus, fades, battle), stack, help
+  if activeCall("src.core.game3.battle", "isActive") then return false, nil, nil, "battle" end
+  if R.battle and R.battle.want == true then return false, nil, nil, "battleWant" end
+  if effectsNeedFlat() then return false, nil, nil, "effects" end
   for i = 1, #FLAT_OVERLAYS do
     local spec = FLAT_OVERLAYS[i]
-    if activeCall(spec[1], spec[2]) then return false end
+    if activeCall(spec[1], spec[2]) then return false, nil, nil, "overlay" end
   end
   local MonPic = engine("src.ui.game3.mon_pic")
-  if MonPic and MonPic.active then return false end
+  if MonPic and MonPic.active then return false, nil, nil, "monPic" end
   local Display = engine("src.core.game3.display")
-  if not Display or Display.planesBroken then return false end
+  if not Display or Display.planesBroken then return false, nil, nil, "planes" end
   -- map identity: a map change or warp makes the next frame a new state
   local Runtime = engine("src.core.game3.runtime")
   local okS, session = false, nil
@@ -1173,6 +1173,13 @@ if FlatRate then
   local okN, inst = pcall(FlatRate.new, {
     rate = opt("perf_flat_rate"), log = log,
     eligible = flatEligible,
+    -- Reporting only: never invokes a watch content provider.
+    navigationCounts = function()
+      local host=findMod('VRITK_FRLG_HOST')
+      local tablet=host and host.exports and host.exports.compat and host.exports.compat.tablet
+      if tablet and type(tablet.takeNavigationCounts)=='function' then return tablet.takeNavigationCounts() end
+      return 'unavailable','unavailable'
+    end,
     frame = function() return S.frame end,
     -- the engine's own canvas target for render.compose (Renderer:endFrame)
     before = function()

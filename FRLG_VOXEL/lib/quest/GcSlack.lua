@@ -44,6 +44,8 @@ M.EMA_ALPHA = 0.1
 M.EMA_START_MS = 1.0
 M.START_RATIO = 1.7
 M.CEIL_KB = 600 * 1024
+M.START_CEILING_FRACTION = 0.75 -- reserve headroom for normal-budget collection
+M.MIN_RESTART_GROWTH_KB = 32 * 1024 -- avoid continuous cycles on large live heaps
 M.AGGRESSIVE_MS = 6.0
 M.OVERFLOW_KB = 768 * 1024
 M.MAX_CALLS = 4096        -- hard bound on chunks per frame
@@ -226,7 +228,11 @@ function M:step()
   end
   if not self.cycleActive then
     local post = self.postCycleKB or kb
-    if kb < post * M.START_RATIO and not ceiling then return 0 end -- nothing to do: no cost
+    -- A large live baseline can put the ratio threshold above the emergency
+    -- ceiling. Begin ordinary bounded work before reaching that ceiling.
+    local headroomStart = math.max(M.CEIL_KB * M.START_CEILING_FRACTION, post + M.MIN_RESTART_GROWTH_KB)
+    local startAt = math.min(post * M.START_RATIO, headroomStart)
+    if kb < startAt and not ceiling then return 0 end -- nothing to do: no cost
     self.cycleActive = true
     self.total.started = self.total.started + 1
     w.started = w.started + 1

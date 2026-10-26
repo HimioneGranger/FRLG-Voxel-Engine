@@ -26,6 +26,14 @@ local V = ...
 local _ = V
 
 local M = {}
+local watchSource
+local wearCounts={invalidState=0,notAttempted=0,admitted=0,unknown=0,callbackError=0}
+local function takeWearCounts()
+  local line=('invalidState=%d notAttempted=%d admitted=%d unknown=%d callbackError=%d'):format(wearCounts.invalidState,wearCounts.notAttempted,wearCounts.admitted,wearCounts.unknown,wearCounts.callbackError)
+  local total=wearCounts.invalidState+wearCounts.notAttempted+wearCounts.admitted+wearCounts.unknown+wearCounts.callbackError
+  wearCounts.invalidState,wearCounts.notAttempted,wearCounts.admitted,wearCounts.unknown,wearCounts.callbackError=0,0,0,0,0
+  return 'total='..total..' '..line
+end
 
 M.RATES = { ["1"] = 1, ["2"] = 2, ["3"] = 3 }
 M.DEFAULT = "3"
@@ -39,6 +47,12 @@ function M.parse(value)
   return M.RATES[M.DEFAULT]
 end
 
+M.REASON_KEYS = { "xr", "world", "wear", "field", "menu", "battle", "battleWant", "effects", "overlay", "monPic", "planes", "ineligible", "gateError", "decisionError", "firstEligible", "signature", "fullRate", "frameUnknown", "scheduled", "watchUnknown", "watchError", "watchDue", "skip", "replayMissing", "replayError", "replayScope" }
+local function newReasons()
+  local t={}
+  for i=1,#M.REASON_KEYS do t[M.REASON_KEYS[i]]=0 end
+  return t
+end
 local FR = {}
 FR.__index = FR
 
@@ -56,7 +70,7 @@ function M.new(deps)
     prevEligible = false, prevA = nil, prevB = nil,
     skipFrame = nil, snap = nil, snapRenderer = nil,
     drawn = 0, skipped = 0, fallbacks = 0, gateErrors = 0,
-    totalDrawn = 0, totalSkipped = 0, warned = {},
+    totalDrawn = 0, totalSkipped = 0, warned = {}, reasons = newReasons(),
   }, FR)
 end
 
@@ -79,23 +93,41 @@ end
 function FR:reset()
   self.prevEligible, self.prevA, self.prevB = false, nil, nil
   self.skipFrame, self.snap, self.snapRenderer = nil, nil, nil
+  watchSource=nil
 end
 
 -- The skip decision for this frame. Always records this frame's eligibility,
 -- so a frame whose conditions changed is the drawn "first frame after".
 function FR:shouldSkip(frame)
-  local okE, eligible, a, b = pcall(self.deps.eligible)
+  local okE, eligible, a, b, gate = pcall(self.deps.eligible)
   if not okE then
     self.gateErrors = self.gateErrors + 1
     self:_warn("gate", "eligibility check failed, drawing every frame it fails: " .. tostring(eligible))
-    eligible, a, b = false, nil, nil
+    eligible, a, b, gate = false, nil, nil, "gateError"
   end
   eligible = eligible == true
   local n = self.rate
   local skip = eligible and self.prevEligible and a == self.prevA and b == self.prevB
     and n > 1 and type(frame) == "number" and frame % n ~= 0
+  -- Attribute existing decisions only; no extra eligibility/provider calls.
+  local reason
+  if not eligible then reason=self.reasons[gate]~=nil and gate or "ineligible"
+  elseif not self.prevEligible then reason="firstEligible"
+  elseif a~=self.prevA or b~=self.prevB then reason="signature"
+  elseif n<=1 then reason="fullRate"
+  elseif type(frame)~="number" then reason="frameUnknown"
+  elseif frame%n==0 then reason="scheduled"
+  else reason="skip" end
+  if skip and watchSource then
+    -- Recheck at Display.present, after game update. A queued map refresh
+    -- draws the native source before compose copies it in this same frame.
+    -- Keep this separate from prevEligible: one refresh does not require an
+    -- extra full-rate follow-up frame. Unknown/failed callbacks draw safely.
+    local ok,needed=pcall(watchSource.navigationMapNeeded)
+    if not ok or needed~=false then skip=false;reason=not ok and "watchError" or (needed==true and "watchDue" or "watchUnknown") end
+  end
   self.prevEligible, self.prevA, self.prevB = eligible, a, b
-  return skip and true or false
+  return skip and true or false, reason
 end
 
 function FR:isSkipFrame(frame)
@@ -135,27 +167,46 @@ function FR:present(orig, ...)
   local frame
   local okF, f = pcall(self.deps.frame)
   if okF then frame = f end
-  local okS, skip = pcall(self.shouldSkip, self, frame)
+  local okS, skip, reason = pcall(self.shouldSkip, self, frame)
   if not okS then
     self.gateErrors = self.gateErrors + 1
     self.prevEligible = false
     self:_warn("decide", "skip decision failed: " .. tostring(skip))
     skip = false
+    reason = "decisionError"
   end
   if skip then
-    local okR, ran = pcall(self._replay, self, frame)
+    -- The watch keeps its last map during replay, including a clock or HUD
+    -- refresh discovered after an arbitrarily slow compose callback. Capture
+    -- the atomic setter so teardown/rebinding cannot prevent scope cleanup.
+    local source=watchSource
+    local mode=source and source.navigationSourceMode
+    local resetMode=source and source.navigationSourceReset
+    local scoped,previous=true,nil
+    if source then scoped,previous=pcall(mode,false)end
+    local okR,ran
+    if scoped then okR,ran=pcall(self._replay,self,frame)
+    else okR,ran=false,'watch source-mode binding unavailable'end
+    if mode and scoped then
+      local restored,why=pcall(mode,previous)
+      if not restored then pcall(resetMode);okR,ran=false,why end
+    end
+    if source and not scoped then pcall(resetMode)end
     if okR and ran then
       self.skipped, self.totalSkipped = self.skipped + 1, self.totalSkipped + 1
+      self.reasons.skip=self.reasons.skip+1
       return true
     end
     -- Nothing skipped after all: draw the real frame (its own compose runs).
     self.skipFrame = nil
     self.prevEligible = false
     self.fallbacks = self.fallbacks + 1
+    reason = not scoped and "replayScope" or (okR and not ran and "replayMissing" or "replayError")
     if not okR then self:_warn("replay", "compose replay failed, drew the frame: " .. tostring(ran)) end
   else
     self.skipFrame = nil
   end
+  self.reasons[reason or "decisionError"] = self.reasons[reason or "decisionError"] + 1
   self.drawn, self.totalDrawn = self.drawn + 1, self.totalDrawn + 1
   return orig(...)
 end
@@ -164,7 +215,17 @@ end
 function FR:takeCounts()
   local d, s, f, e = self.drawn, self.skipped, self.fallbacks, self.gateErrors
   self.drawn, self.skipped, self.fallbacks, self.gateErrors = 0, 0, 0, 0
-  return d, s, f, e, self.rate
+  local parts,total={},0
+  for i=1,#M.REASON_KEYS do
+    local key=M.REASON_KEYS[i];local count=self.reasons[key]
+    total=total+count;parts[i]=key.."="..count;self.reasons[key]=0
+  end
+  local navContract,navSource
+  if self.deps.navigationCounts then
+    local ok,c,v=pcall(self.deps.navigationCounts)
+    if ok then navContract,navSource=c,v else navContract='reportError';navSource='reportError' end
+  end
+  return d, s, f, e, self.rate, table.concat(parts," "), total,takeWearCounts(),navContract,navSource
 end
 
 -- Install on the engine's Display module. Idempotent per process: the module
@@ -260,11 +321,25 @@ end
 -- table, now = seconds. Away only when not visible now AND no visible frame
 -- within WEAR_HOLD_S. An error, or no clock, answers false (draw).
 function M.wearStep(st, info, now)
-  if type(st) ~= "table" then return false end
+  if type(st) ~= "table" then wearCounts.invalidState=wearCounts.invalidState+1;return false end
+  watchSource=nil
   local okV, visible, why = pcall(M.wearableVisible, info)
   if not okV then visible, why = true, "error" end
-  st.why = why
   now = num(now)
+  local tablet=type(info)=='table' and info.gear==true and info.tablet
+  if now~=nil and (why=='watch-in-view' or why=='watch-near')
+      and type(tablet)=='table' and type(tablet.navigationMapNeeded)=='function'
+      and type(tablet.navigationSourceMode)=='function' and type(tablet.navigationSourceReset)=='function' then
+    local ok,needed=pcall(tablet.navigationMapNeeded,true)
+    if ok and type(needed)=='boolean' then
+      wearCounts.admitted=wearCounts.admitted+1
+      watchSource=tablet;st.why='watch-map-cadence'
+      st.visibleFrames=(st.visibleFrames or 0)+1;st.lastVisible=now;st.holdPending=nil
+      return true
+    end
+    if ok then wearCounts.unknown=wearCounts.unknown+1 else wearCounts.callbackError=wearCounts.callbackError+1 end
+  else wearCounts.notAttempted=wearCounts.notAttempted+1 end
+  st.why = why
   if visible then
     st.visibleFrames = (st.visibleFrames or 0) + 1
     if now ~= nil then st.lastVisible = now else st.holdPending = true end

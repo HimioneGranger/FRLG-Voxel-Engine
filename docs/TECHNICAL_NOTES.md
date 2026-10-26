@@ -1,4 +1,4 @@
-# Beta 7 technical notes
+# Beta 8 technical notes
 
 This repository distributes the FRLG renderer and internal adapters. The host,
 ROM import, game simulation, platform services and optional gameplay mods remain
@@ -122,3 +122,16 @@ baseline and existing map-by-bearing/transition review. It does not establish
 complete regional geography or headset acceptance. The native source-map
 coordinates, eight original project horizon images and coverage exclusions
 remain as reviewed; no new horizon authoring is performed in this release.
+
+## Beta 8 boundaries
+
+The engine source follows lab 3268 plus the reviewed Saffron duplicate-block
+correction. Route 15's experimental fence/gatehouse change is excluded. Existing
+native building and cave data are retained. The optional tester activation
+helper is inert without the separately supplied tester-stack marker and exact
+provider versions; this package never ships or enables Catch by itself.
+
+The watch scheduling fix is included, but native host/coreLoader and external
+VRITK/Gear changes made in the full tester builds are not part of this ZIP.
+Consumers must supply compatible versions; engine-only installation does not
+claim parity with every full-lab performance or interaction fix.

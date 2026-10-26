@@ -1,6 +1,18 @@
 -- Exact prior cache identities: scheduling/IO changes only.
 -- Geometry, source, codec and renderer output parity are separately required.
 return {
+ -- Exact3264 GC headroom scheduling only; static producer output unchanged.
+ ["5c7ff67792f3301f16e45f53df020821"]={"49edf7da7976037edd13e20f9119ff70","e9ce22a5df9d367f47594f825c78baf8","547faaddc78603ec3f77dcc86f669764","f3693637e020ab516f081bd28e38c205","0859563cc0619ed338ab921c73523c0d","e55ca30ae0dfe3596b2d0014fc4145a5","18d8db4cb0740a71cd7b3d0dbee1e04c","f788608e65e3795936968f4ed04ba6e0","b53b3add0d22252d3590db5c2e00cae8"},
+ -- Exact3263 capture-HUD adoption guard only; static producer output unchanged.
+ ["49edf7da7976037edd13e20f9119ff70"]={"e9ce22a5df9d367f47594f825c78baf8","547faaddc78603ec3f77dcc86f669764","f3693637e020ab516f081bd28e38c205","0859563cc0619ed338ab921c73523c0d","e55ca30ae0dfe3596b2d0014fc4145a5","18d8db4cb0740a71cd7b3d0dbee1e04c","f788608e65e3795936968f4ed04ba6e0","b53b3add0d22252d3590db5c2e00cae8"},
+ -- Exact3262 watch guard diagnostics only; producer geometry unchanged.
+ ["e9ce22a5df9d367f47594f825c78baf8"]={"547faaddc78603ec3f77dcc86f669764","f3693637e020ab516f081bd28e38c205","0859563cc0619ed338ab921c73523c0d","e55ca30ae0dfe3596b2d0014fc4145a5","18d8db4cb0740a71cd7b3d0dbee1e04c","f788608e65e3795936968f4ed04ba6e0","b53b3add0d22252d3590db5c2e00cae8"},
+ -- Exact3260 watch redraw cadence only; static producer bytes unchanged.
+ ["547faaddc78603ec3f77dcc86f669764"]={"f3693637e020ab516f081bd28e38c205","0859563cc0619ed338ab921c73523c0d","e55ca30ae0dfe3596b2d0014fc4145a5","18d8db4cb0740a71cd7b3d0dbee1e04c","f788608e65e3795936968f4ed04ba6e0","b53b3add0d22252d3590db5c2e00cae8"},
+ -- Exact3259 compatibility/presentation changes only; static world stamps unchanged.
+ ["f3693637e020ab516f081bd28e38c205"]={"0859563cc0619ed338ab921c73523c0d","e55ca30ae0dfe3596b2d0014fc4145a5","18d8db4cb0740a71cd7b3d0dbee1e04c","f788608e65e3795936968f4ed04ba6e0","b53b3add0d22252d3590db5c2e00cae8"},
+ ["965938e29a1afc6fb0161cfcd517b59b"]={"bed998787a55d7ef9ad2aee8a3c6703d"},
+
  -- Exact low-tree draw-policy release: existing stored stamps unchanged.
  -- See firered-low-detail-trees-20261024 cache audit and production draw tests.
  ["0859563cc0619ed338ab921c73523c0d"]={"e55ca30ae0dfe3596b2d0014fc4145a5","18d8db4cb0740a71cd7b3d0dbee1e04c","f788608e65e3795936968f4ed04ba6e0","b53b3add0d22252d3590db5c2e00cae8"},

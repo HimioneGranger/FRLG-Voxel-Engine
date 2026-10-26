@@ -74,7 +74,21 @@ local function installE1(st, log)
       local okRt, Runtime = pcall(require, "src.core.game3.runtime")
       local session = okRt and Runtime and Runtime.getSession and Runtime.getSession()
       local roamerEnc = Roamer.tryEncounter(session, mapId, water and "water" or "land")
-      if roamerEnc then return roamerEnc end
+      if roamerEnc then
+        -- Legacy FRLG puts its saved PID on foe, while Wilds consumes the
+        -- top-level personality. Do not let Wilds invent a new roamer identity.
+        if roamerEnc.roamer then
+          local pid = roamerEnc.personality
+          if pid == nil then
+            local foe = roamerEnc.foe
+            pid = type(foe) == "table" and (foe.pid or foe.personality) or nil
+          end
+          if type(pid) ~= "number" or pid ~= pid or pid % 1 ~= 0
+              or pid < 0 or pid > 4294967295 then return nil end
+          if roamerEnc.personality == nil then roamerEnc.personality = pid end
+        end
+        return roamerEnc
+      end
     end
     if not area or #area.slots == 0 then return nil end
     local entry = H.pick_slot(area.slots, water and H.WATER_WEIGHTS or H.LAND_WEIGHTS)

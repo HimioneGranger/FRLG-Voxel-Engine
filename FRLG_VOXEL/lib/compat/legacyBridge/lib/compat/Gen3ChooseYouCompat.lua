@@ -865,6 +865,16 @@ end
 M.beltSwitch = Switch
 M.recallAim = Aim
 
+-- The Catch approach waits until this belt-owned field send-out has handed
+-- its card back. Cancellation/timeout clears Gen3PartyActionFX's live event.
+function M.fieldDeployFxActive()
+  if not installed then return false end
+  local ok, fx = pcall(function() return Host and Host.require("compat/Gen3PartyActionFX") end)
+  if not (ok and fx and type(fx.fieldDeployActive) == "function") then return false end
+  local okActive, active = pcall(fx.fieldDeployActive)
+  return okActive and active == true or false
+end
+
 function M.status()
   if not installed then return { installed = false } end
   local cy = installed.V.chooseYou

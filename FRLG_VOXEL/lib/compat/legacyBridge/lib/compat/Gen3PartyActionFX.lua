@@ -36,6 +36,11 @@ M.HANDOFF_SEC = 0.05 -- belt-switch: s of overlap between the user's coloured pi
 M.OPENING_BEAMS = true -- vr-doubles: false = battle openings (singles and doubles) play the native send-out only
 local stats={started=0,acquired=0,draws=0,completed=0,failed=0}
 local liveEvent
+-- Allocation-free gameplay gate for the nearby-wild approach: the fixed
+-- approach delay must not start battle before a delayed field beam hands off.
+function M.fieldDeployActive()
+  return liveEvent ~= nil and liveEvent.kind == 'deploy'
+end
 local audioOwners=setmetatable({},{__mode='k'})
 local function stopSound(owner,release)
   for _,source in pairs(owner._gen3PartyAudio or {})do

@@ -1,3 +1,31 @@
+# Beta 8
+
+- Native round shrubs retain their dark leaf borders, with leftover shrub art
+  removed from the ground. Matching approved artwork uses the compiled profile;
+  mixed gatehouse tiles remain excluded.
+- Saffron's thin blue railings no longer receive duplicate solid walls or
+  missing ground. Ordinary silver fences remain a separate family. Route 15's
+  shared gatehouse/fence issue is still pending and its experiment is excluded.
+- Watch-map redraw scheduling avoids unnecessary native frames, and memory
+  cleanup begins with more headroom. These are engine-side changes; the separate
+  host/VRITK readback fix is not bundled in this engine-only download.
+- Send-out presentation waits for full-size follower art. Wilds receives the
+  saved roamer identity for supported overworld capture, including Suicune.
+- Party-belt presentation can be allowed independently of Catch availability.
+  Input/catching still requires the separately supplied compatible gameplay mod.
+- Includes the previously prepared beta 7 tree modes, controls guide, belt lock,
+  throw options, juggling, physical-item adapters and native battle text.
+
+Existing buildings, caves, foliage artwork, compatibility adapters, private-use
+beta license and third-party notices are retained. ROMs, saves, the game host,
+optional mod stack, title/Oak scenes, APK/Steam launcher and the embedded Gen 5
+sprite provider are not included. External sprite-provider support remains.
+
+This is a prerelease. Saffron was reviewed in isolated GPU previews; the latest
+combined beta still needs headset testing. No fixed FPS guarantee is made.
+
+---
+
 # Beta 7
 
 - One **Trees: Cards / Voxel / Voxel Low Res** choice. Low Res uses the existing
