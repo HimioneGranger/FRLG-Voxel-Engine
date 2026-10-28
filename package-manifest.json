@@ -893,8 +893,8 @@
     },
     {
       "path": "FRLG_VOXEL/lib/mesh/FrlgCompiledShrubData.lua",
-      "bytes": 118886,
-      "sha256": "ea24fb03a16280910540dc1130b9b589fe4456e17d3858f3ebb8c70f76b544b1"
+      "bytes": 124310,
+      "sha256": "bf6a872847a880ac3d6526c5d965d059b301ab1828d531d9bb5576f22e64ddd3"
     },
     {
       "path": "FRLG_VOXEL/lib/mesh/FrlgCompiledTree.lua",
